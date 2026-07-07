@@ -1,0 +1,11 @@
+# Генерируемые артефакты сборки (не исходники)
+build/
+proof/
+deck.pdf
+deck_boxed.pdf
+print_PDFX-1a*.pdf
+*_clean.jpg
+proof_*.png
+scripts/__pycache__/
+__pycache__/
+*.pyc
