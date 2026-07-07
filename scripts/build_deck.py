@@ -51,12 +51,9 @@ def build(spec):
         mask = np.zeros(img.shape[:2], np.uint8); mask[text & region] = 255
         mask = cv2.dilate(mask, np.ones((3, 3), np.uint8), iterations=5)
         img = cv2.inpaint(img, mask, 9, cv2.INPAINT_NS)
-    # 2) убрать старый логотип: заливка чистым фоном (профиль цвета слева от логотипа),
-    #    чтобы не было следа инпейнта под прозрачными участками нового логотипа
-    if spec.get('logo_erase'):
-        le = spec['logo_erase']
-        sx = spec.get('logo_bg_sample_x', le[0] - 35)
-        img = clean_bg_patch(img, le, sx)
+    # ЛОГОТИП НЕ ТРОГАЕМ: оригинальный впечатанный логотип уже чистый и на месте.
+    # Любая замена/стирание давали артефакты (ореол/квадратная подложка), поэтому
+    # logo_erase/logo в спецификациях игнорируются намеренно.
     # 2b) полностью закрасить произвольные области (напр. старые растровые точки/иконки)
     if spec.get('fill'):
         img = inpaint_boxes(img, spec['fill'], radius=12)
@@ -77,8 +74,7 @@ def build(spec):
 
     c = canvas.Canvas(f"{OUT}/page{n:02d}.pdf", pagesize=(PW, PH))
     c.drawImage(clean, 0, 0, width=PW, height=PH)
-    if spec.get('logo'):
-        place_logo(c, 'assets/logo_orange.png', *spec['logo'])
+    # логотип НЕ заменяем — оставляем оригинальный впечатанный (см. выше)
     # заголовок
     if spec.get('title'):
         tf = spec.get('title_font', 'Onest-ExtraBold')
