@@ -60,16 +60,15 @@ def build(spec):
     # 2b') чистая заливка фона (для больших заголовков на почти-сплошном фоне)
     for (box, sample_x) in spec.get('bg_fill', []):
         img = clean_bg_patch(img, box, sample_x)
-    # 2c) стереть СТАРЫЕ растровые точки буллетов (их не берёт яркостный фильтр —
-    #     они оранжевые), чтобы под новыми вектор-точками не было ореола
-    if spec.get('bullets') and not spec.get('no_dot_erase'):
-        r = spec.get('dot_r', 11)
-        dot_boxes = []
+    # На СПЛОШНОМ фоне (solid_dots) стираем старую точку начисто (инпейнт незаметен),
+    # чтобы новая чёткая точка не имела кольца/ореола. На фото/градиенте не трогаем.
+    if spec.get('solid_dots') and spec.get('bullets'):
+        rr = spec.get('dot_r', 16)
+        boxes = []
         for (cx, ls) in spec['bullets']:
-            cys = [b for (t, b, x, w) in ls]
-            cy = (min(cys) + max(cys)) // 2 - 8
-            dot_boxes.append((cx - r - 12, cy - r - 20, cx + r + 12, cy + r + 14))
-        img = inpaint_boxes(img, dot_boxes, radius=10)
+            cys = [b for (t, b, x, w) in ls]; cy = (min(cys) + max(cys)) // 2 - 8
+            boxes.append((cx - rr - 7, cy - rr - 7, cx + rr + 7, cy + rr + 7))
+        img = inpaint_boxes(img, boxes, radius=8)
     clean = f"{OUT}/pg{n:02d}_clean.jpg"; cv2.imwrite(clean, img)
 
     c = canvas.Canvas(f"{OUT}/page{n:02d}.pdf", pagesize=(PW, PH))
@@ -87,9 +86,10 @@ def build(spec):
         bf = spec.get('body_font', 'Onest-Regular')
         allw = [(t, w) for (cx, ls) in spec['bullets'] for (t, b, x, w) in ls]
         bs = spec.get('body_size') or max(size_for(t, bf, w) for (t, w) in allw)
-        r = spec.get('dot_r', 11)
+        r = spec.get('dot_r', 16)
         for (cx, ls) in spec['bullets']:
             cys = [b for (t, b, x, w) in ls]; cy = (min(cys)+max(cys))//2 - 8
+            # плоская вектор-точка радиусом, перекрывающим старую точку с ореолом
             c.setFillColorRGB(*ORANGE); c.circle(X(cx), Y(cy), r*SX, stroke=0, fill=1)
             c.setFillColorRGB(*WHITE); c.setFont(bf, bs)
             for (t, b, x, w) in ls:
