@@ -1,0 +1,23 @@
+%!
+% PDF/X-1a def для Ghostscript. ВАЖНО: путь к профилю ниже сделайте АБСОЛЮТНЫМ
+% (или запускайте gs из каталога, где лежит FOGRA39.icc).
+[ /GTS_PDFXVersion (PDF/X-1:2001)
+  /GTS_PDFXConformance (PDF/X-1a:2001)
+  /Title (EnergoGrupp Kompleksnoe stroitelstvo 2025)
+  /Trapped /False
+/DOCINFO pdfmark
+/ICCProfile (FOGRA39.icc) def          %% <-- при необходимости абсолютный путь к color/FOGRA39.icc
+/pdfmark where {pop} {userdict /pdfmark /cleartomark load put} ifelse
+[ /_objdef {icc_PDFX} /type /stream /OBJ pdfmark
+[ {icc_PDFX} <</N 4>> /PUT pdfmark
+[ {icc_PDFX} ICCProfile (r) file /PUT pdfmark
+[ /_objdef {OutputIntent_PDFX} /type /dict /OBJ pdfmark
+[ {OutputIntent_PDFX} <<
+    /Type /OutputIntent
+    /S /GTS_PDFX
+    /OutputCondition (Coated FOGRA39 \(ISO 12647-2:2004\))
+    /OutputConditionIdentifier (FOGRA39)
+    /RegistryName (http://www.color.org)
+    /DestOutputProfile {icc_PDFX}
+  >> /PUT pdfmark
+[ {Catalog} <</OutputIntents [ {OutputIntent_PDFX} ]>> /PUT pdfmark
