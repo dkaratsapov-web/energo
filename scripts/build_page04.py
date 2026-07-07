@@ -38,6 +38,15 @@ for (x0, y0, x1, y1) in ERASE:
 mask = np.zeros(img.shape[:2], np.uint8); mask[text & region] = 255
 mask = cv2.dilate(mask, np.ones((3, 3), np.uint8), iterations=5)
 img = cv2.inpaint(img, mask, 9, cv2.INPAINT_NS)
+
+# полностью убрать СТАРЫЕ растровые столбцы (закрасить их область чистым градиентом),
+# чтобы под новыми вектор-столбцами не было мутных краёв
+BARS_XT = [(127,181,1484),(272,326,1411),(417,471,1339),(562,616,1230),
+           (707,761,1086),(853,907,1006),(998,1051,936)]
+bmask = np.zeros(img.shape[:2], np.uint8)
+for (x0, x1, top) in BARS_XT:
+    bmask[top-12:1530, x0-14:x1+40] = 255
+img = cv2.inpaint(img, bmask, 12, cv2.INPAINT_NS)
 clean = f"{OUT}/pg04_clean.jpg"; cv2.imwrite(clean, img)
 
 # ---- 2. draw ----

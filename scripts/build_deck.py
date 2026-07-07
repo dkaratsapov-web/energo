@@ -20,6 +20,17 @@ def inpaint_boxes(img, boxes, radius=12):
         mask[y0:y1, x0:x1] = 255
     return cv2.inpaint(img, mask, radius, cv2.INPAINT_NS)
 
+def clean_bg_patch(img, box, sample_x):
+    """Закрасить box чистым фоном: берём вертикальный профиль цвета из колонки sample_x
+    (гладко сглаженный) и им заливаем каждую строку box. Убирает след инпейнта под логотипом."""
+    x0, y0, x1, y1 = box
+    sx = max(0, min(sample_x, img.shape[1] - 1))
+    col = img[:, sx].astype(np.float32)
+    col = cv2.GaussianBlur(col.reshape(-1, 1, 3), (1, 31), 0).reshape(-1, 3)
+    for y in range(y0, y1):
+        img[y, x0:x1] = col[y]
+    return img
+
 def place_logo(c, logo_png, x0_px, top_px, w_px):
     im = Image.open(logo_png); ar = im.size[1] / im.size[0]; h_px = w_px * ar
     c.drawImage(logo_png, X(x0_px), Y(top_px + h_px), width=w_px*SX, height=h_px*SY, mask='auto')
@@ -40,9 +51,28 @@ def build(spec):
         mask = np.zeros(img.shape[:2], np.uint8); mask[text & region] = 255
         mask = cv2.dilate(mask, np.ones((3, 3), np.uint8), iterations=5)
         img = cv2.inpaint(img, mask, 9, cv2.INPAINT_NS)
-    # 2) стереть логотип (весь прямоугольник)
+    # 2) убрать старый логотип: заливка чистым фоном (профиль цвета слева от логотипа),
+    #    чтобы не было следа инпейнта под прозрачными участками нового логотипа
     if spec.get('logo_erase'):
-        img = inpaint_boxes(img, [spec['logo_erase']], radius=14)
+        le = spec['logo_erase']
+        sx = spec.get('logo_bg_sample_x', le[0] - 35)
+        img = clean_bg_patch(img, le, sx)
+    # 2b) полностью закрасить произвольные области (напр. старые растровые точки/иконки)
+    if spec.get('fill'):
+        img = inpaint_boxes(img, spec['fill'], radius=12)
+    # 2b') чистая заливка фона (для больших заголовков на почти-сплошном фоне)
+    for (box, sample_x) in spec.get('bg_fill', []):
+        img = clean_bg_patch(img, box, sample_x)
+    # 2c) стереть СТАРЫЕ растровые точки буллетов (их не берёт яркостный фильтр —
+    #     они оранжевые), чтобы под новыми вектор-точками не было ореола
+    if spec.get('bullets') and not spec.get('no_dot_erase'):
+        r = spec.get('dot_r', 11)
+        dot_boxes = []
+        for (cx, ls) in spec['bullets']:
+            cys = [b for (t, b, x, w) in ls]
+            cy = (min(cys) + max(cys)) // 2 - 8
+            dot_boxes.append((cx - r - 12, cy - r - 20, cx + r + 12, cy + r + 14))
+        img = inpaint_boxes(img, dot_boxes, radius=10)
     clean = f"{OUT}/pg{n:02d}_clean.jpg"; cv2.imwrite(clean, img)
 
     c = canvas.Canvas(f"{OUT}/page{n:02d}.pdf", pagesize=(PW, PH))
@@ -68,9 +98,15 @@ def build(spec):
             c.setFillColorRGB(*WHITE); c.setFont(bf, bs)
             for (t, b, x, w) in ls:
                 c.drawString(X(x), Y(b), t)
-    # свободный текст [(text,base,x,size,font,rgb)]
+    # свободный текст [(text,base,x,size,font,rgb)]; суффикс '/i' у шрифта = наклон (курсив)
     for (t, b, x, sz, f, rgb) in spec.get('body', []):
-        c.setFillColorRGB(*rgb); c.setFont(f, sz); c.drawString(X(x), Y(b), t)
+        italic = f.endswith('/i'); fname = f[:-2] if italic else f
+        c.setFillColorRGB(*rgb); c.setFont(fname, sz)
+        if italic:
+            c.saveState(); c.translate(X(x), Y(b)); c.transform(1, 0, 0.18, 1, 0, 0)
+            c.drawString(0, 0, t); c.restoreState()
+        else:
+            c.drawString(X(x), Y(b), t)
     c.showPage(); c.save()
     return f"{OUT}/page{n:02d}.pdf"
 
