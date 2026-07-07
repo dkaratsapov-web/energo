@@ -25,39 +25,66 @@ def fill_boxes(img, boxes, radius=10):
     for (x0, y0, x1, y1) in boxes: mask[y0:y1, x0:x1] = 255
     return cv2.inpaint(img, mask, radius, cv2.INPAINT_NS)
 
-# ---- вектор-иконки (белые пиктограммы) ----
-def icon_person(c, cx, cy, s):
+# ---- вектор-иконки (белые пиктограммы, приближены к оригиналу) ----
+def icon_person_arms(c, cx, cy, s):
+    """Миссия 1: фигура с поднятыми руками."""
     c.setFillColorRGB(*WHITE); c.setStrokeColorRGB(*WHITE)
-    c.circle(X(cx), Y(cy - s*0.42), s*0.22*SX, stroke=0, fill=1)          # голова
-    c.setLineWidth(s*0.16*SX); c.setLineCap(1)
-    p = c.beginPath(); p.moveTo(X(cx - s*0.38), Y(cy + s*0.5))
-    p.curveTo(X(cx - s*0.38), Y(cy - s*0.02), X(cx + s*0.38), Y(cy - s*0.02), X(cx + s*0.38), Y(cy + s*0.5))
-    c.drawPath(p, stroke=1, fill=0)                                        # плечи
+    c.circle(X(cx), Y(cy - s*0.5), s*0.2*SX, stroke=0, fill=1)                    # голова
+    c.setLineWidth(s*0.15*SX); c.setLineCap(1); c.setLineJoin(1)
+    # туловище
+    c.line(X(cx), Y(cy - s*0.28), X(cx), Y(cy + s*0.42))
+    # руки вверх (V)
+    c.line(X(cx), Y(cy - s*0.12), X(cx - s*0.5), Y(cy - s*0.55))
+    c.line(X(cx), Y(cy - s*0.12), X(cx + s*0.5), Y(cy - s*0.55))
+    # ноги
+    c.line(X(cx), Y(cy + s*0.42), X(cx - s*0.32), Y(cy + s*0.78))
+    c.line(X(cx), Y(cy + s*0.42), X(cx + s*0.32), Y(cy + s*0.78))
 
-def icon_cross(c, cx, cy, s):
-    c.setFillColorRGB(*WHITE)
-    w = s*0.7; t = s*0.24
-    c.rect(X(cx) - t*SX/2, Y(cy) - w*SY/2, t*SX, w*SY, stroke=0, fill=1)
-    c.rect(X(cx) - w*SX/2, Y(cy) - t*SY/2, w*SX, t*SY, stroke=0, fill=1)
-
-def icon_heart(c, cx, cy, s):
-    c.setFillColorRGB(*WHITE)
-    x0, y0 = X(cx), Y(cy - s*0.32)
-    p = c.beginPath(); p.moveTo(x0, Y(cy + s*0.48))
-    p.curveTo(X(cx - s*0.62), Y(cy - s*0.02), X(cx - s*0.42), Y(cy - s*0.55), x0, Y(cy - s*0.2))
-    p.curveTo(X(cx + s*0.42), Y(cy - s*0.55), X(cx + s*0.62), Y(cy - s*0.02), x0, Y(cy + s*0.48))
+def _heart(c, cx, cy, s, sc=1.0):
+    p = c.beginPath(); p.moveTo(X(cx), Y(cy + s*0.42*sc))
+    p.curveTo(X(cx - s*0.62*sc), Y(cy - s*0.05*sc), X(cx - s*0.4*sc), Y(cy - s*0.5*sc), X(cx), Y(cy - s*0.16*sc))
+    p.curveTo(X(cx + s*0.4*sc), Y(cy - s*0.5*sc), X(cx + s*0.62*sc), Y(cy - s*0.05*sc), X(cx), Y(cy + s*0.42*sc))
     c.drawPath(p, stroke=0, fill=1)
 
-ICONS = [(145, 592, icon_person), (145, 815, icon_cross), (145, 1068, icon_heart)]
+def icon_hands_heart(c, cx, cy, s):
+    """Миссия 2: сердце в раскрытых ладонях (забота)."""
+    c.setFillColorRGB(*WHITE); c.setStrokeColorRGB(*WHITE)
+    _heart(c, cx, cy - s*0.18, s, sc=0.8)                                          # сердце
+    c.setLineWidth(s*0.14*SX); c.setLineCap(1)
+    # ладони-дуги снизу
+    p = c.beginPath(); p.moveTo(X(cx - s*0.55), Y(cy + s*0.1))
+    p.curveTo(X(cx - s*0.5), Y(cy + s*0.55), X(cx + s*0.5), Y(cy + s*0.55), X(cx + s*0.55), Y(cy + s*0.1))
+    c.drawPath(p, stroke=1, fill=0)
+
+def icon_brain(c, cx, cy, s):
+    """Миссия 3: мозг (психологическое здоровье)."""
+    c.setStrokeColorRGB(*WHITE); c.setFillColorRGB(*WHITE)
+    c.setLineWidth(s*0.12*SX); c.setLineCap(1); c.setLineJoin(1)
+    # контур мозга (две доли)
+    p = c.beginPath(); p.moveTo(X(cx), Y(cy - s*0.5))
+    p.curveTo(X(cx - s*0.55), Y(cy - s*0.55), X(cx - s*0.6), Y(cy + s*0.05), X(cx - s*0.42), Y(cy + s*0.28))
+    p.curveTo(X(cx - s*0.5), Y(cy + s*0.55), X(cx - s*0.05), Y(cy + s*0.58), X(cx), Y(cy + s*0.4))
+    p.curveTo(X(cx + s*0.05), Y(cy + s*0.58), X(cx + s*0.5), Y(cy + s*0.55), X(cx + s*0.42), Y(cy + s*0.28))
+    p.curveTo(X(cx + s*0.6), Y(cy + s*0.05), X(cx + s*0.55), Y(cy - s*0.55), X(cx), Y(cy - s*0.5))
+    c.drawPath(p, stroke=1, fill=0)
+    # центральная линия + складка
+    c.line(X(cx), Y(cy - s*0.5), X(cx), Y(cy + s*0.4))
+    p2 = c.beginPath(); p2.moveTo(X(cx - s*0.28), Y(cy - s*0.15))
+    p2.curveTo(X(cx - s*0.1), Y(cy - s*0.05), X(cx - s*0.12), Y(cy + s*0.15), X(cx - s*0.3), Y(cy + s*0.2))
+    c.drawPath(p2, stroke=1, fill=0)
+
+ICONS = [(145, 592, icon_person_arms), (145, 815, icon_hands_heart), (145, 1068, icon_brain)]
 
 def build(out='build/page02.pdf'):
     img = cv2.imread('page_images_150dpi/pg02.jpg')
-    # стереть старый текст миссий/заголовка
-    img = erase(img, [(110,300,735,425),(110,485,400,522),(175,582,348,614),(175,804,348,838),
-                      (175,1058,350,1090),(110,650,720,755),(110,872,835,1008),(110,1125,820,1230),
+    # стереть старый текст заголовка/подзаголовка/абзацев (яркостно)
+    img = erase(img, [(110,300,735,425),(110,485,400,522),
+                      (110,650,720,755),(110,872,835,1008),(110,1125,820,1230),
                       (108,1296,365,1323)], contrast=26)
-    # стереть старые растровые иконки-диски целиком (перекроем вектором)
-    img = fill_boxes(img, [(100, 555, 195, 640), (100, 777, 195, 862), (100, 1030, 195, 1115)], radius=14)
+    # полностью закрасить старые иконки-диски И старые оранжевые лейблы «Миссия N»
+    # (оранжевое не берётся яркостным фильтром; на гладком градиенте инпейнт чистый)
+    img = fill_boxes(img, [(100, 555, 195, 640), (100, 777, 195, 862), (100, 1030, 195, 1115),
+                           (172, 576, 435, 622), (172, 798, 435, 846), (172, 1052, 435, 1098)], radius=14)
     cv2.imwrite('build/pg02_clean.jpg', img)
 
     c = canvas.Canvas(out, pagesize=(PW, PH))
@@ -68,13 +95,13 @@ def build(out='build/page02.pdf'):
         fn(c, cx, cy, 26)
     # текст
     body = [
-        ('Входим в попечительский совет', 340, 116, 18.57, 'Onest-Bold', WHITE),
-        ('благотворительного фонда', 380, 115, 18.57, 'Onest-Bold', WHITE),
-        ('«Энергия Русского духа»', 419, 115, 18.57, 'Onest-Bold', WHITE),
-        ('Миссии фонда', 513, 116, 18.24, 'Onest-Bold', ORANGE),
-        ('Миссия 1', 606, 195, 13.79, 'Onest-Bold', ORANGE),
-        ('Миссия 2', 828, 195, 13.79, 'Onest-Bold', ORANGE),
-        ('Миссия 3', 1081, 195, 13.79, 'Onest-Bold', ORANGE),
+        ('Входим в попечительский совет', 340, 116, 18.57, 'Onest-ExtraBold', WHITE),
+        ('благотворительного фонда', 380, 115, 18.57, 'Onest-ExtraBold', WHITE),
+        ('«Энергия Русского духа»', 419, 115, 18.57, 'Onest-ExtraBold', WHITE),
+        ('Миссии фонда', 513, 116, 18.24, 'Onest-ExtraBold', ORANGE),
+        ('Миссия 1', 606, 195, 13.79, 'Onest-ExtraBold', ORANGE),
+        ('Миссия 2', 828, 195, 13.79, 'Onest-ExtraBold', ORANGE),
+        ('Миссия 3', 1081, 195, 13.79, 'Onest-ExtraBold', ORANGE),
         ('Содействие в восстановлении благополучия', 668, 116, 11.92, 'Onest-Regular', WHITE),
         ('работников энергетической отрасли и их семей,', 695, 116, 11.92, 'Onest-Regular', WHITE),
         ('пострадавших в результате событий, связанных', 722, 116, 11.92, 'Onest-Regular', WHITE),

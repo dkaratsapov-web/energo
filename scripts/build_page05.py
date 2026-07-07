@@ -81,8 +81,8 @@ for top, (num, word) in zip(CARD_TOPS, rows):
         plain(word[1], LEFT, base2, 'Onest-Regular', WORD_S, DARK)
         continue
     base = Y(top + 55)
-    oblique(num, LEFT, base, 'Onest-Bold', NUM_S, DARK)
-    nw = pdfmetrics.stringWidth(num, 'Onest-Bold', NUM_S)
+    oblique(num, LEFT, base, 'Onest-ExtraBold', NUM_S, DARK)
+    nw = pdfmetrics.stringWidth(num, 'Onest-ExtraBold', NUM_S)
     gap = (18 if num == '5' else 9)       # wider gap after lone "5"
     plain(word, LEFT + nw + gap, base, 'Onest-Regular', WORD_S, DARK)
 
