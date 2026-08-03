@@ -109,5 +109,81 @@ def cover(out='build/page01.pdf'):
     c.setFillColorRGB(*ORANGE); c.setFont('Onest-ExtraBold', 18); c.drawString(X(80), Y(1690), '#2025')
     c.showPage(); c.save(); print('cover ok')
 
+def italic(c, t, x_pt, y_pt, size, font, rgb):
+    c.setFillColorRGB(*rgb); c.setFont(font, size)
+    c.saveState(); c.translate(x_pt, y_pt); c.transform(1, 0, 0.18, 1, 0, 0)
+    c.drawString(0, 0, t); c.restoreState()
+
+# ---------------- Стр. 3 — разделитель / оглавление ----------------
+def divider(out='build/page03.pdf'):
+    c = canvas.Canvas(out, pagesize=(PW, PH))
+    bg_gradient(c, [(0.0, G_TOP), (0.6, G_MID), (1.0, (0.30,0.22,0.48))])
+    # субтильная опора справа
+    tower(c, PW*0.86, PH*0.12, PH*0.5, 60, rgb=(0.62,0.64,0.82), lw=1.2)
+    # логотип
+    place_svg(c, 'assets/logo_vector_orange.svg', PW-190, PH-96, 150)
+    # заголовок
+    c.setFillColorRGB(*WHITE)
+    ts = max(size_for(t,'Onest-ExtraBold',w) for (t,w) in [('КОМПЛЕКСНОЕ',629),('СТРОИТЕЛЬСТВО',710)])
+    c.setFont('Onest-ExtraBold', ts)
+    c.drawString(X(107), Y(384), 'КОМПЛЕКСНОЕ'); c.drawString(X(104), Y(468), 'СТРОИТЕЛЬСТВО')
+    # оглавление 01/02/03
+    items = [('01','Объекты энергетики'), ('02','Промышленные объекты'), ('03','Объекты гражданского назначения')]
+    ys = [PH*0.52, PH*0.36, PH*0.20]
+    for (num, lab), yb in zip(items, ys):
+        italic(c, num, X(107), yb, 66, 'Onest-ExtraBold', ORANGE)
+        c.setStrokeColorRGB(*ORANGE); c.setLineWidth(2); c.line(X(112), yb-14, X(240), yb-14)
+        c.setFillColorRGB(*WHITE); c.setFont('Onest-Medium', 20); c.drawString(X(112), yb-40, lab)
+    c.showPage(); c.save(); print('divider ok')
+
+# ---------------- Стр. 6 — достижения на «чертёжном» векторном фоне ----------------
+def blueprint_bg(c):
+    from reportlab.lib.colors import Color
+    c.linearGradient(0, PH, 0, 0, [Color(0.07,0.06,0.17), Color(0.16,0.12,0.32), Color(0.10,0.09,0.24)], [0,0.5,1], extend=True)
+    # сетка
+    c.setStrokeColorRGB(1,1,1); c.setLineWidth(0.4); c.setStrokeAlpha(0.06)
+    step = 26
+    x = 0
+    while x < PW: c.line(x,0,x,PH); x += step
+    y = 0
+    while y < PH: c.line(0,y,PW,y); y += step
+    # схематические окружности/линии (намёк на чертёж)
+    c.setStrokeAlpha(0.10); c.setLineWidth(1.0)
+    for (cx,cy,r) in [(PW*0.2,PH*0.72,60),(PW*0.8,PH*0.3,80),(PW*0.7,PH*0.8,45)]:
+        c.circle(cx,cy,r,stroke=1,fill=0); c.circle(cx,cy,r*0.5,stroke=1,fill=0)
+    c.setStrokeAlpha(1)
+
+def achievements(out='build/page06.pdf'):
+    c = canvas.Canvas(out, pagesize=(PW, PH))
+    blueprint_bg(c)
+    rows = [
+        ('25 800 км', 'протянуто проводов на воздушных ЛЭП'),
+        ('413 278', 'опор ЛЭП использовано при строительстве'),
+        ('1224', 'ПС, ТП, РП построено объектов'),
+        ('502 000', 'объектов подключено к электрическим сетям'),
+        ('ГНБ прокол 339 км', None),
+        ('16 298 м²', 'построено и введено в эксплуатацию промышленных и гражданских площадей'),
+    ]
+    n = len(rows); top = PH*0.86; gap = (top - PH*0.12)/(n-1)
+    for i,(num,cap) in enumerate(rows):
+        yb = top - i*gap
+        nw = pdfmetrics.stringWidth(num, 'Onest-ExtraBold', 26)
+        italic(c, num, PW/2 - nw/2, yb, 26, 'Onest-ExtraBold', ORANGE)
+        if cap:
+            c.setFillColorRGB(*WHITE); c.setFont('Onest-Regular', 12.5)
+            cw = pdfmetrics.stringWidth(cap, 'Onest-Regular', 12.5)
+            if cw > PW*0.8:  # перенос длинной подписи
+                words = cap.split(); mid = len(words)//2+1
+                l1=' '.join(words[:mid]); l2=' '.join(words[mid:])
+                for k,l in enumerate([l1,l2]):
+                    w=pdfmetrics.stringWidth(l,'Onest-Regular',12.5); c.drawString(PW/2-w/2, yb-20-k*16, l)
+            else:
+                c.drawString(PW/2-cw/2, yb-20, cap)
+    c.showPage(); c.save(); print('achievements ok')
+
 if __name__ == '__main__':
-    cover()
+    import sys
+    which = sys.argv[1:] or ['1','3','6']
+    if '1' in which: cover()
+    if '3' in which: divider()
+    if '6' in which: achievements()
