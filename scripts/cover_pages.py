@@ -181,9 +181,56 @@ def achievements(out='build/page06.pdf'):
                 c.drawString(PW/2-cw/2, yb-20, cap)
     c.showPage(); c.save(); print('achievements ok')
 
+# ---------------- Стр. 2 — фонд «Энергия Русского духа» ----------------
+def charity(out='build/page02.pdf'):
+    sys.path.insert(0, 'scripts')
+    import build_page02 as bp
+    c = canvas.Canvas(out, pagesize=(PW, PH))
+    bg_gradient(c, [(0.0, G_TOP), (0.5, (0.22,0.16,0.40)), (1.0, (0.34,0.24,0.46))])
+    tower(c, PW*0.9, PH*0.1, PH*0.42, 52, rgb=(0.58,0.6,0.8), lw=1.0)
+    # герб фонда (временная вырезка на прозрачном — нужен ВЕКТОР от самого фонда)
+    fw = (722-100)  # px ширины лок-апа в исходнике
+    ar = 0.277
+    c.drawImage('assets/fund_logo_keyed.png', X(100), Y(66) - fw*ar*SX,
+                width=fw*SX, height=fw*ar*SX, mask='auto')
+    # текст/иконки — как в build_page02, но поверх вектор-фона
+    for cx, cy, fn in bp.ICONS:
+        c.setFillColorRGB(*ORANGE); c.circle(X(cx), Y(cy), 26*SX, stroke=0, fill=1)
+        fn(c, cx, cy, 26)
+    for (t, b, x, sz, f, rgb) in bp.__dict__.get('BODY', []) or []:
+        pass
+    # тексты (совпадают с build_page02.body)
+    body = [
+        ('Входим в попечительский совет', 340, 116, 18.57, 'Onest-ExtraBold', WHITE),
+        ('благотворительного фонда', 380, 115, 18.57, 'Onest-ExtraBold', WHITE),
+        ('«Энергия Русского духа»', 419, 115, 18.57, 'Onest-ExtraBold', WHITE),
+        ('Миссии фонда', 513, 116, 18.24, 'Onest-ExtraBold', ORANGE),
+        ('Миссия 1', 606, 195, 13.79, 'Onest-ExtraBold', ORANGE),
+        ('Миссия 2', 828, 195, 13.79, 'Onest-ExtraBold', ORANGE),
+        ('Миссия 3', 1081, 195, 13.79, 'Onest-ExtraBold', ORANGE),
+        ('Содействие в восстановлении благополучия', 668, 116, 11.92, 'Onest-Regular', WHITE),
+        ('работников энергетической отрасли и их семей,', 695, 116, 11.92, 'Onest-Regular', WHITE),
+        ('пострадавших в результате событий, связанных', 722, 116, 11.92, 'Onest-Regular', WHITE),
+        ('с проведением специальной военной операции', 749, 116, 11.92, 'Onest-Regular', WHITE),
+        ('Обеспечение необходимой медицинской,', 892, 116, 11.92, 'Onest-Regular', WHITE),
+        ('социальной и материальной помощи работникам', 918, 116, 11.92, 'Onest-Regular', WHITE),
+        ('отрасли для преодоления травм, полученных в результате', 948, 116, 11.92, 'Onest-Regular', WHITE),
+        ('событий, связанных с проведением специальной военной', 972, 116, 11.92, 'Onest-Regular', WHITE),
+        ('операции, и возвращения к полноценной жизни', 1000, 116, 11.92, 'Onest-Regular', WHITE),
+        ('Восстановление психологического здоровья', 1142, 118, 11.92, 'Onest-Regular', WHITE),
+        ('и душевного равновесия работников энергетической', 1169, 118, 11.92, 'Onest-Regular', WHITE),
+        ('отрасли, пострадавших в результате событий, связанных', 1196, 117, 11.92, 'Onest-Regular', WHITE),
+        ('с проведением специальной военной операции', 1224, 117, 11.92, 'Onest-Regular', WHITE),
+        ('https://эрдфонд.рф/', 1315, 116, 11.61, 'Onest-Regular', ORANGE),
+    ]
+    for (t, b, x, sz, f, rgb) in body:
+        c.setFillColorRGB(*rgb); c.setFont(f, sz); c.drawString(X(x), Y(b), t)
+    c.showPage(); c.save(); print('charity ok')
+
 if __name__ == '__main__':
     import sys
-    which = sys.argv[1:] or ['1','3','6']
+    which = sys.argv[1:] or ['1','2','3','6']
     if '1' in which: cover()
+    if '2' in which: charity()
     if '3' in which: divider()
     if '6' in which: achievements()
