@@ -17,6 +17,7 @@ from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from textmask import find_lines, erase
+from pageio import load_page, fit
 from metrics import line_metrics, dot_circles
 from weight import guess_weight, WEIGHTS
 
@@ -48,7 +49,10 @@ def measure(img, block):
     d = dict(dark=block.get('dark',False), thr=block.get('thr',18),
              k=block.get('k',31), gap=block.get('gap',3),
              row_frac=block.get('row_frac',0.02), only=block.get('only'))
-    lines = find_lines(img, block['box'], **d)
+    boxes = block.get('boxes') or [block['box']]
+    lines = []
+    for bx in boxes:
+        lines += find_lines(img, tuple(bx), **d)
     lines.sort(key=lambda l:(l[1],l[0]))
     if 'skip' in block:
         lines = [l for i,l in enumerate(lines) if i not in block['skip']]
@@ -56,7 +60,7 @@ def measure(img, block):
         lines = [lines[i] for i in block['pick']]
     texts = block['texts']
     if len(lines) != len(texts):
-        raise SystemExit(f"  !! блок {block['box']}: найдено строк {len(lines)}, "
+        raise SystemExit(f"  !! блок {block.get('box') or block['boxes']}: найдено строк {len(lines)}, "
                          f"в спеке {len(texts)}\n     {[ (l[0],l[1],l[2]-l[0]) for l in lines]}")
     out=[]
     for l,t in zip(lines,texts):
@@ -71,9 +75,7 @@ def build(spec, src_dir='page_images_150dpi', out_dir='vector_pages',
     """Собрать одну страницу. scale>1 — фон подставляется увеличенным."""
     register_fonts()
     pg = spec['page']
-    img = cv2.imread(bg_override or f'{src_dir}/pg{pg:02d}.jpg')
-    if img.shape[1] != BASE_W:
-        img = cv2.resize(img,(BASE_W,BASE_H),interpolation=cv2.INTER_AREA)
+    img = fit(cv2.imread(bg_override)) if bg_override else load_page(pg, src_dir)
 
     blocks=[]
     for b in spec.get('blocks',[]):
@@ -121,10 +123,18 @@ def build(spec, src_dir='page_images_150dpi', out_dir='vector_pages',
         if 'font' not in b:
             gs=[guess_weight(img, m['line'], m['text'], dark=b.get('dark',False))[0] for m in ms]
             font='Onest-'+max(set(gs), key=gs.count)
-            print(f"    [подбор] блок {b['box']}: {font}  (по строкам: {gs})")
+            print(f"    [подбор] блок {b.get('box') or b['boxes']}: {font}  (по строкам: {gs})")
         else:
             font = b['font']
-        if b.get('size','group')=='group':
+        if 'size_ref' in b:
+            # ширину части строк измерить надёжно нельзя (светлый текст на
+            # светлом фото, рядом контрастные детали кадра). Тогда кегль
+            # берём по указанной строке, а от остальных — только позицию.
+            r = ms[b['size_ref']]
+            per=[size_for(r['text'],font,r['w'])]*len(ms)
+        elif isinstance(b.get('size'), (int,float)):
+            per=[float(b['size'])]*len(ms)
+        elif b.get('size','group')=='group':
             sizes=[size_for(m['text'],font,m['w']) for m in ms]
             sz = float(np.median(sizes)) if b.get('robust') else max(sizes)
             per=[sz]*len(ms)
@@ -147,7 +157,7 @@ def build(spec, src_dir='page_images_150dpi', out_dir='vector_pages',
             else:
                 c.drawString(X(m['x']), Y(m['base']), m['text'])
         if verbose:
-            print(f"  стр{pg:02d} блок {b['box']} шрифт={font} кегль={per[0]:.1f}pt "
+            print(f"  стр{pg:02d} блок {b.get('box') or b['boxes']} шрифт={font} кегль={per[0]:.1f}pt "
                   f"строк={len(ms)} цвет={tuple(int(v) for v in rgb)}")
     c.showPage(); c.save()
     return outp

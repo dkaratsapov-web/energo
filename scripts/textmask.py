@@ -63,8 +63,12 @@ def find_lines(img, box, dark=False, k=31, thr=18, min_h=8, min_w=20, gap=6,
     sub = img[y0:y1, x0:x1]
     m = text_mask(sub, None, dark, k, thr, strict=True, only=only)
     m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, np.ones((3,3),np.uint8))
-    m = cv2.morphologyEx(m, cv2.MORPH_OPEN,  np.ones((2,2),np.uint8))
-    rows = (m>0).sum(1)
+    # OPEN подавляет шум фото и нужен для НАРЕЗКИ на строки, но он же
+    # съедает тонкие штрихи (вертикаль «П», «Г»), и левый край строки
+    # уезжает вправо на целую букву. Поэтому строки режем по mo, а
+    # горизонтальные границы каждой строки меряем по m — без OPEN.
+    mo = cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((2,2),np.uint8))
+    rows = (mo>0).sum(1)
     on = rows > max(3, row_frac*m.shape[1])
     lines=[]; s=None; blank=0
     for i,v in enumerate(on):
@@ -80,9 +84,10 @@ def find_lines(img, box, dark=False, k=31, thr=18, min_h=8, min_w=20, gap=6,
     if s is not None and len(on)-s>=min_h: lines.append((s,len(on)-1))
     out=[]
     for (a,b) in lines:
-        strip = m[a:b+1]
-        cols = (strip>0).sum(0)
-        nz = np.where(cols>0)[0]
+        cols = (m[a:b+1]>0).sum(0)
+        nz = np.where(cols >= 2)[0]
+        if len(nz)==0:
+            nz = np.where(cols>0)[0]
         if len(nz)==0 or nz[-1]-nz[0] < min_w: continue
         out.append((x0+int(nz[0]), y0+a, x0+int(nz[-1])+1, y0+b+1))
     return out

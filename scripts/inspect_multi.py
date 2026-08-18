@@ -3,12 +3,13 @@
 import cv2, numpy as np, sys, json
 sys.path.insert(0,'scripts')
 from textmask import find_lines
+from pageio import load_page
 S='/tmp/claude-0/-home-user-energo/4f5fc398-702b-53db-bad5-51c1408b61d9/scratchpad/'
 
 def run(jobs, out, zoom=2.0, W=1000):
     strips=[]; meta={}
     for job in jobs:
-        pg=job['page']; img=cv2.imread(f'page_images_150dpi/pg{pg:02d}.jpg')
+        pg=job['page']; img=load_page(pg)
         lines=[]
         for b in job['boxes']:
             lines += find_lines(img, tuple(b), **job.get('kw',{}))

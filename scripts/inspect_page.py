@@ -3,11 +3,12 @@
 import cv2, numpy as np, sys, json
 sys.path.insert(0,'scripts')
 from textmask import find_lines
+from pageio import load_page
 
 S='/tmp/claude-0/-home-user-energo/4f5fc398-702b-53db-bad5-51c1408b61d9/scratchpad/'
 
 def inspect(page, boxes, dark=False, tag='', zoom=2.0, thr=18, k=31, gap=6, row_frac=0.012):
-    img=cv2.imread(f'page_images_150dpi/pg{page:02d}.jpg')
+    img=load_page(page)
     lines=[]
     for b in boxes:
         lines += find_lines(img,b,dark=dark,thr=thr,k=k,gap=gap,row_frac=row_frac)
