@@ -1,0 +1,380 @@
+[
+ {
+  "page": 1,
+  "key": "p01_cover",
+  "desc": "Обложка: ЛЭП на закате (вертикальный кадр), БЕЗ текста",
+  "slot_px": "1240x1754",
+  "need_px": "2678x3789",
+  "mpx": 10.1,
+  "status": "REQ"
+ },
+ {
+  "page": 2,
+  "key": "p02_wires",
+  "desc": "Провода / небо на закате (фон разворота фонда)",
+  "slot_px": "1240x1754",
+  "need_px": "2678x3789",
+  "mpx": 10.1,
+  "status": "REQ"
+ },
+ {
+  "page": 3,
+  "key": "p03_towers",
+  "desc": "Опоры ЛЭП на закате (фон «Комплексное строительство»)",
+  "slot_px": "1240x1754",
+  "need_px": "2678x3789",
+  "mpx": 10.1,
+  "status": "REQ"
+ },
+ {
+  "page": 6,
+  "key": "p06_blueprints",
+  "desc": "Чертежи, карандаш, циркуль (фон страницы статистики)",
+  "slot_px": "1240x1754",
+  "need_px": "2678x3789",
+  "mpx": 10.1,
+  "status": "REQ"
+ },
+ {
+  "page": 7,
+  "key": "p07_winter",
+  "desc": "ЛЭП зимой с автокраном (фон «Проектирование»)",
+  "slot_px": "1240x1754",
+  "need_px": "2678x3789",
+  "mpx": 10.1,
+  "status": "REQ"
+ },
+ {
+  "page": 8,
+  "key": "p08_office_tray",
+  "desc": "Офис: кабельный лоток под потолком",
+  "slot_px": "1240x765",
+  "need_px": "2678x1652",
+  "mpx": 4.4,
+  "status": "SQZ"
+ },
+ {
+  "page": 9,
+  "key": "p09_office_desks",
+  "desc": "Офис: рабочие места / столы",
+  "slot_px": "1240x877",
+  "need_px": "2678x1894",
+  "mpx": 5.1,
+  "status": "SQZ"
+ },
+ {
+  "page": 9,
+  "key": "p09_office_floor",
+  "desc": "Офис: пол / общий вид помещения",
+  "slot_px": "1240x877",
+  "need_px": "2678x1894",
+  "mpx": 5.1,
+  "status": "SQZ"
+ },
+ {
+  "page": 10,
+  "key": "p10_cable_lay",
+  "desc": "Прокладка кабеля в траншее (вид сверху)",
+  "slot_px": "1240x764",
+  "need_px": "2678x1650",
+  "mpx": 4.4,
+  "status": "REQ"
+ },
+ {
+  "page": 11,
+  "key": "p11_trench_top",
+  "desc": "Траншея с красными трубами, вид сверху (дрон)",
+  "slot_px": "1240x874",
+  "need_px": "2678x1888",
+  "mpx": 5.1,
+  "status": "REQ"
+ },
+ {
+  "page": 11,
+  "key": "p11_excavator",
+  "desc": "Экскаватор JCB роет траншею",
+  "slot_px": "1240x874",
+  "need_px": "2678x1888",
+  "mpx": 5.1,
+  "status": "REQ"
+ },
+ {
+  "page": 12,
+  "key": "p12_ohl_winter",
+  "desc": "Воздушная ЛЭП зимой (фон страницы ВЛ)",
+  "slot_px": "1240x1754",
+  "need_px": "2678x3789",
+  "mpx": 10.1,
+  "status": "REQ"
+ },
+ {
+  "page": 13,
+  "key": "p13_workers",
+  "desc": "Рабочие в касках у бетонной опоры",
+  "slot_px": "1240x870",
+  "need_px": "2678x1879",
+  "mpx": 5.0,
+  "status": "REQ"
+ },
+ {
+  "page": 13,
+  "key": "p13_crane",
+  "desc": "Гусеничный кран JCB на площадке",
+  "slot_px": "1240x884",
+  "need_px": "2678x1909",
+  "mpx": 5.1,
+  "status": "REQ"
+ },
+ {
+  "page": 14,
+  "key": "p14_transformer",
+  "desc": "Силовой трансформатор на подстанции",
+  "slot_px": "1240x955",
+  "need_px": "2678x2063",
+  "mpx": 5.5,
+  "status": "REQ"
+ },
+ {
+  "page": 14,
+  "key": "p14_ktp_blue",
+  "desc": "КТП (синий блок-модуль)",
+  "slot_px": "620x754",
+  "need_px": "1339x1629",
+  "mpx": 2.2,
+  "status": "REQ"
+ },
+ {
+  "page": 14,
+  "key": "p14_substation",
+  "desc": "Площадка подстанции с опорами",
+  "slot_px": "620x754",
+  "need_px": "1339x1629",
+  "mpx": 2.2,
+  "status": "REQ"
+ },
+ {
+  "page": 15,
+  "key": "p15_subst_pano",
+  "desc": "Панорама подстанции (ОРУ, зима)",
+  "slot_px": "1240x870",
+  "need_px": "2678x1879",
+  "mpx": 5.0,
+  "status": "REQ"
+ },
+ {
+  "page": 15,
+  "key": "p15_svel",
+  "desc": "Трансформатор СВЭЛ на фундаменте",
+  "slot_px": "1240x884",
+  "need_px": "2678x1909",
+  "mpx": 5.1,
+  "status": "SQZ"
+ },
+ {
+  "page": 16,
+  "key": "p16_building_blue",
+  "desc": "Здание с синей архитектурной подсветкой",
+  "slot_px": "1240x710",
+  "need_px": "2678x1534",
+  "mpx": 4.1,
+  "status": "REQ"
+ },
+ {
+  "page": 16,
+  "key": "p16_building_gold",
+  "desc": "Здание с золотой подсветкой (ночь)",
+  "slot_px": "1240x654",
+  "need_px": "2678x1413",
+  "mpx": 3.8,
+  "status": "REQ"
+ },
+ {
+  "page": 17,
+  "key": "p17_church",
+  "desc": "Храм / деревья, наружное освещение",
+  "slot_px": "1240x1010",
+  "need_px": "2678x2182",
+  "mpx": 5.8,
+  "status": "REQ"
+ },
+ {
+  "page": 17,
+  "key": "p17_road_night",
+  "desc": "Дорога М11 с фонарями ночью",
+  "slot_px": "1240x744",
+  "need_px": "2678x1607",
+  "mpx": 4.3,
+  "status": "REQ"
+ },
+ {
+  "page": 18,
+  "key": "p18_panel",
+  "desc": "Электрощит, наладчик с прибором",
+  "slot_px": "1240x1754",
+  "need_px": "2678x3789",
+  "mpx": 10.1,
+  "status": "REQ"
+ },
+ {
+  "page": 19,
+  "key": "p19_hdd_pipes",
+  "desc": "Красные трубы ГНБ на площадке",
+  "slot_px": "1240x764",
+  "need_px": "2678x1650",
+  "mpx": 4.4,
+  "status": "REQ"
+ },
+ {
+  "page": 20,
+  "key": "p20_metro_site",
+  "desc": "Метрострой: стройплощадка",
+  "slot_px": "680x600",
+  "need_px": "1469x1296",
+  "mpx": 1.9,
+  "status": "REQ"
+ },
+ {
+  "page": 20,
+  "key": "p20_metro_panel",
+  "desc": "Метрострой: распределительный щит (вертикальный кадр)",
+  "slot_px": "380x604",
+  "need_px": "821x1305",
+  "mpx": 1.1,
+  "status": "REQ"
+ },
+ {
+  "page": 21,
+  "key": "p21_ukrm",
+  "desc": "УКРМ-0,4 кВ, синие блок-модули",
+  "slot_px": "1240x875",
+  "need_px": "2678x1890",
+  "mpx": 5.1,
+  "status": "SQZ"
+ },
+ {
+  "page": 21,
+  "key": "p21_foundations",
+  "desc": "Рабочий у бетонных фундаментов",
+  "slot_px": "1240x879",
+  "need_px": "2678x1899",
+  "mpx": 5.1,
+  "status": "SQZ"
+ },
+ {
+  "page": 22,
+  "key": "p22_road_pipe",
+  "desc": "Дорога / труба, ОЭЗ «Эммаус»",
+  "slot_px": "1240x1754",
+  "need_px": "2678x3789",
+  "mpx": 10.1,
+  "status": "REQ"
+ },
+ {
+  "page": 23,
+  "key": "p23_pipe_trench",
+  "desc": "Укладка трубы большого диаметра в траншею",
+  "slot_px": "1240x945",
+  "need_px": "2678x2041",
+  "mpx": 5.5,
+  "status": "REQ"
+ },
+ {
+  "page": 23,
+  "key": "p23_road_roller",
+  "desc": "Укладка асфальта, каток",
+  "slot_px": "1240x809",
+  "need_px": "2678x1747",
+  "mpx": 4.7,
+  "status": "REQ"
+ },
+ {
+  "page": 24,
+  "key": "p24_worker",
+  "desc": "Рабочий в каске со спины (Западный мост)",
+  "slot_px": "1240x1754",
+  "need_px": "2678x3789",
+  "mpx": 10.1,
+  "status": "REQ"
+ },
+ {
+  "page": 25,
+  "key": "p25_truss",
+  "desc": "Металлическая ферма моста",
+  "slot_px": "1240x870",
+  "need_px": "2678x1879",
+  "mpx": 5.0,
+  "status": "REQ"
+ },
+ {
+  "page": 25,
+  "key": "p25_pole",
+  "desc": "Установка опоры краном-манипулятором",
+  "slot_px": "1240x884",
+  "need_px": "2678x1909",
+  "mpx": 5.1,
+  "status": "REQ"
+ },
+ {
+  "page": 26,
+  "key": "p26_yard",
+  "desc": "Двор жилого комплекса с детской площадкой",
+  "slot_px": "1240x870",
+  "need_px": "2678x1879",
+  "mpx": 5.0,
+  "status": "REQ"
+ },
+ {
+  "page": 26,
+  "key": "p26_house1",
+  "desc": "Жилой дом, ракурс 1",
+  "slot_px": "620x430",
+  "need_px": "1339x929",
+  "mpx": 1.2,
+  "status": "REQ"
+ },
+ {
+  "page": 26,
+  "key": "p26_house2",
+  "desc": "Жилой дом, ракурс 2",
+  "slot_px": "620x430",
+  "need_px": "1339x929",
+  "mpx": 1.2,
+  "status": "REQ"
+ },
+ {
+  "page": 26,
+  "key": "p26_house3",
+  "desc": "Жилой дом, ракурс 3 (ввод 2025)",
+  "slot_px": "1240x454",
+  "need_px": "2678x981",
+  "mpx": 2.6,
+  "status": "REQ"
+ },
+ {
+  "page": 27,
+  "key": "p27_tower",
+  "desc": "Высотка «Аструм-Сити»",
+  "slot_px": "1240x1695",
+  "need_px": "2678x3661",
+  "mpx": 9.8,
+  "status": "REQ"
+ },
+ {
+  "page": 31,
+  "key": "p31_sunset",
+  "desc": "ЛЭП на закате (фон страницы лицензий)",
+  "slot_px": "1240x1032",
+  "need_px": "2678x2229",
+  "mpx": 6.0,
+  "status": "REQ"
+ },
+ {
+  "page": 32,
+  "key": "p32_back",
+  "desc": "Задняя обложка: опора ЛЭП",
+  "slot_px": "1240x1754",
+  "need_px": "2678x3789",
+  "mpx": 10.1,
+  "status": "REQ"
+ }
+]
