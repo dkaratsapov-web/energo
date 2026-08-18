@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from PIL import Image, ImageDraw, ImageFont
 from textmask import find_lines, erase
 from pageio import load_page, fit
 from upscale import upscale, add_bleed
@@ -108,6 +109,29 @@ def measure(img, block):
         out.append(m)
     return out
 
+def _font_and_sizes(img, b, ms):
+    """Начертание и кегль каждой строки блока."""
+    if 'font' not in b:
+        gs=[guess_weight(img, m['line'], m['text'], dark=b.get('dark',False))[0] for m in ms]
+        font='Onest-'+max(set(gs), key=gs.count)
+    else:
+        font = b['font']
+    sk = b.get('skew', 0.0)
+    if b.get('fit') == 'height':
+        per=[size_by_height(m['cap']) for m in ms]
+    elif 'size_ref' in b:
+        r = ms[b['size_ref']]
+        per=[size_for(r['text'],font,r['w'],sk,r['cap'])]*len(ms)
+    elif isinstance(b.get('size'), (int,float)):
+        per=[float(b['size'])]*len(ms)
+    elif b.get('size','group')=='group':
+        sizes=[size_for(m['text'],font,m['w'],sk,m['cap']) for m in ms]
+        sz = float(np.median(sizes)) if b.get('robust') else max(sizes)
+        per=[sz]*len(ms)
+    else:
+        per=[size_for(m['text'],font,m['w'],sk,m['cap']) for m in ms]
+    return font, per
+
 def build(spec, src_dir='page_images_150dpi', out_dir='vector_pages',
           bg_override=None, scale=1, verbose=True, bleed_mm=0.0, dpi=150,
           denoise=True):
@@ -122,9 +146,11 @@ def build(spec, src_dir='page_images_150dpi', out_dir='vector_pages',
     pg = spec['page']
     img = fit(cv2.imread(bg_override)) if bg_override else load_page(pg, src_dir)
 
+    register_fonts()
     blocks=[]
     for b in spec.get('blocks',[]):
-        blocks.append((b, measure(img, b)))
+        ms = measure(img, b)
+        blocks.append((b, ms, *_font_and_sizes(img, b, ms)))
     dots=[]
     for db in spec.get('dots',[]):
         dots += dot_circles(img, db)
@@ -143,7 +169,7 @@ def build(spec, src_dir='page_images_150dpi', out_dir='vector_pages',
 
     # ---- стереть старый впечатанный текст ----
     light_boxes, dark_boxes = [], []
-    for b,ms in blocks:
+    for b,ms,_font,_per in blocks:
         pad = b.get('pad',10)
         for m in ms:
             x0,y0,x1,y1 = m['line']
@@ -154,9 +180,18 @@ def build(spec, src_dir='page_images_150dpi', out_dir='vector_pages',
     for (cx,cy,r) in dots:
         rr=int(r+4); light_boxes.append((int(cx-rr),int(cy-rr),int(cx+rr),int(cy+rr)))
 
+    # Всё, что перекроет новый набор, стирать не нужно: inpaint по большой
+    # площади мылит фото (на детализированном кадре это видно как пятна).
+    # Оставляем под стирание только кайму старых глифов, торчащую из-под
+    # новых, — новый текст стоит на тех же координатах и того же кегля.
+    keep = _new_ink_mask(blocks, dots, shapes, spec.get('dot_rgb',(252,144,43)))
+    os.makedirs('build/masks', exist_ok=True)
+    cv2.imwrite(f'build/masks/pg{pg:02d}.png', keep)   # нужна для проверки артефактов
     clean = img
-    if light_boxes: clean = erase(clean, light_boxes, dark=False, **spec.get('erase_opt',{}))
-    if dark_boxes:  clean = erase(clean, dark_boxes,  dark=True,  **spec.get('erase_opt_dark',{}))
+    if light_boxes:
+        clean = erase(clean, light_boxes, dark=False, keep=keep, **spec.get('erase_opt',{}))
+    if dark_boxes:
+        clean = erase(clean, dark_boxes, dark=True, keep=keep, **spec.get('erase_opt_dark',{}))
 
     # ---- подложка: разрешение и вылет ----
     factor = max(1, int(round(dpi/150.0)))
@@ -196,31 +231,8 @@ def build(spec, src_dir='page_images_150dpi', out_dir='vector_pages',
         c.setFillColorRGB(*[v/255 for v in col])
         c.circle(X(cx), Y(cy), max(r-R_BIAS,1)*SX, stroke=0, fill=1)
 
-    for b,ms in blocks:
-        # если начертание не задано — подбираем по плотности штриха
-        if 'font' not in b:
-            gs=[guess_weight(img, m['line'], m['text'], dark=b.get('dark',False))[0] for m in ms]
-            font='Onest-'+max(set(gs), key=gs.count)
-            print(f"    [подбор] блок {b.get('box') or b['boxes']}: {font}  (по строкам: {gs})")
-        else:
-            font = b['font']
+    for b,ms,font,per in blocks:
         sk = b.get('skew', 0.0)
-        if b.get('fit') == 'height':
-            per=[size_by_height(m['cap']) for m in ms]
-        elif 'size_ref' in b:
-            # ширину части строк измерить надёжно нельзя (светлый текст на
-            # светлом фото, рядом контрастные детали кадра). Тогда кегль
-            # берём по указанной строке, а от остальных — только позицию.
-            r = ms[b['size_ref']]
-            per=[size_for(r['text'],font,r['w'],sk,r['cap'])]*len(ms)
-        elif isinstance(b.get('size'), (int,float)):
-            per=[float(b['size'])]*len(ms)
-        elif b.get('size','group')=='group':
-            sizes=[size_for(m['text'],font,m['w'],sk,m['cap']) for m in ms]
-            sz = float(np.median(sizes)) if b.get('robust') else max(sizes)
-            per=[sz]*len(ms)
-        else:
-            per=[size_for(m['text'],font,m['w'],sk,m['cap']) for m in ms]
         rgb = b.get('rgb')
         if rgb is None:
             arr=np.array([m['rgb'] for m in ms]); rgb=tuple(arr.mean(0).astype(int))
@@ -243,6 +255,48 @@ def build(spec, src_dir='page_images_150dpi', out_dir='vector_pages',
     if bleed_mm > 0:
         _set_trimbox(outp, bleed_pt)
     return outp
+
+def _new_ink_mask(blocks, dots, shapes, dot_rgb=(252,144,43)):
+    """Куда ляжет новый вектор — в пикселях подложки.
+
+    Маску снимаем с фактического рендера того же ReportLab-набора, а не
+    перерисовываем шрифтом через PIL: у двух движков чуть разный трекинг,
+    и к концу строки маска расходится с реальными глифами на несколько
+    пикселей. Тогда из-под нового текста торчит полоска старого, её
+    стирает inpaint — и вокруг букв появляются грязные пятна.
+    """
+    import io, pymupdf
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=(PW, PH))
+    c.setFillColorRGB(0,0,0); c.rect(0,0,PW,PH, stroke=0, fill=1)
+    c.setFillColorRGB(1,1,1)
+    for (x,y,w,h,rgb,grow,radius) in shapes:
+        c.rect(X(x-grow), Y(y+h+grow), (w+2*grow)*SX, (h+2*grow)*SY, stroke=0, fill=1)
+    for (cx,cy,r) in dots:
+        c.circle(X(cx), Y(cy), max(r-R_BIAS,1)*SX, stroke=0, fill=1)
+    for (b, ms, font, per) in blocks:
+        sk = b.get('skew', 0.0)
+        for m, size in zip(ms, per):
+            c.setFont(font, size)
+            if sk:
+                t = np.tan(np.radians(sk))
+                c.saveState(); c.transform(1, 0, t, 1, -t*Y(m['base']), 0)
+                c.drawString(X(m['x']), Y(m['base']), m['text']); c.restoreState()
+            else:
+                c.drawString(X(m['x']), Y(m['base']), m['text'])
+    c.showPage(); c.save()
+    doc = pymupdf.open(stream=buf.getvalue(), filetype='pdf')
+    px = doc[0].get_pixmap(matrix=pymupdf.Matrix(BASE_W/PW, BASE_H/PH), colorspace='gray')
+    a = np.frombuffer(px.samples, np.uint8).reshape(px.height, px.width)
+    if a.shape != (BASE_H, BASE_W):
+        a = cv2.resize(a, (BASE_W, BASE_H), interpolation=cv2.INTER_AREA)
+    # порог низкий: сглаженный край глифа тоже кроет фон
+    return (a > 32).astype(np.uint8)*255
+
+def _font_path(name):
+    w = name.split('-',1)[1]
+    p = f'{ROOT}/fonts/static/Onest-{w}.ttf'
+    return p if os.path.exists(p) else f'{ROOT}/fonts/Onest-{w}.ttf'
 
 def _set_trimbox(path, bleed_pt):
     """TrimBox = обрезной формат, BleedBox/CropBox = вся страница с вылетом."""

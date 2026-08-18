@@ -45,16 +45,41 @@ def text_mask(img, boxes=None, dark=False, k=31, thr=18, strict=False, only=None
         m = cv2.bitwise_and(m, reg)
     return m
 
-def erase(img, boxes, dark=False, k=31, thr=18, grow=4, radius=12):
-    """Стереть текст в boxes и вернуть чистый фон."""
+def erase(img, boxes, dark=False, k=31, thr=18, grow=2, radius=4, keep=None,
+          near=6):
+    """Стереть текст в boxes и вернуть чистый фон.
+
+    keep — маска того, что и так будет закрашено новым вектором. Эти
+    пиксели из стирания исключаются: inpaint по всей площади глифа мылит
+    фотографию, и на детализированном кадре это читается как грязные
+    пятна вокруг букв. Реально восстанавливать нужно только кайму
+    старого набора, торчащую из-под нового.
+    """
     m = text_mask(img, boxes, dark, k, thr)
     m = cv2.dilate(m, cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(grow*2+1,)*2))
-    out = cv2.inpaint(img, m, radius, cv2.INPAINT_TELEA)
-    # второй проход сглаживает остаточную «рябь» inpaint внутри маски
-    blur = cv2.medianBlur(out, 7)
-    m3 = cv2.merge([m,m,m]).astype(np.float32)/255.0
-    m3 = cv2.GaussianBlur(m3,(9,9),0)
-    return (out*(1-m3) + blur*m3).astype(np.uint8)
+    if keep is not None:
+        # Прямоугольник строки шире самих букв, и внутрь него попадают
+        # светлые детали кадра — изоляторы, провода, блики. По маске
+        # «светлее фона» они неотличимы от текста, и inpaint их съедал:
+        # это и были размазанные пятна на фото. Стираем только то, что
+        # лежит вплотную к набору.
+        band = cv2.dilate(keep, cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
+                                                          (near*2+1,)*2))
+        m = cv2.bitwise_and(m, band)
+    if not m.any():
+        return img
+    # Инпейнт считаем по ПОЛНОЙ маске старого набора: если исключить из неё
+    # keep заранее, алгоритм возьмёт за образец сам невытертый текст и
+    # обведёт буквы светлым ореолом. А вот в результат подмешиваем чистый
+    # фон только за пределами keep — под новыми глифами старый пиксель
+    # всё равно будет закрашен, и мылить там нечего.
+    clean = cv2.inpaint(img, m, radius, cv2.INPAINT_TELEA)
+    if keep is None:
+        return clean
+    use = cv2.bitwise_and(m, cv2.bitwise_not(keep)) > 0
+    out = img.copy()
+    out[use] = clean[use]
+    return out
 
 def find_lines(img, box, dark=False, k=31, thr=18, min_h=8, min_w=20, gap=6,
                row_frac=0.02, only=None):
