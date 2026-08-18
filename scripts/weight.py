@@ -29,7 +29,7 @@ SS = 4   # сверхсэмплинг: рендерим крупно и умен
          # Иначе чистый рендер «худее» пережатого JPEG и вес завышается.
 
 def ink_ratio_font(text, weight, w_px, h_px):
-    path=f'{ROOT}/fonts/Onest-{weight}.ttf'
+    path=f'{ROOT}/fonts/static/Onest-{weight}.ttf' if os.path.isdir(f'{ROOT}/fonts/static') else f'{ROOT}/fonts/Onest-{weight}.ttf'
     lo,hi=4,400*SS
     tw = w_px*SS
     for _ in range(30):                       # подбор кегля под ширину

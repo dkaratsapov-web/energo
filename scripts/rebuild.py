@@ -36,13 +36,35 @@ _reg = False
 def register_fonts():
     global _reg
     if _reg: return
+    # fonts/static — начертания с исправленными именами (см. fix_fonts.py):
+    # в исходных файлах у всех весов одно PostScript-имя, и ReportLab
+    # встраивал в PDF единственный светлый шрифт вместо пяти.
+    base = f'{ROOT}/fonts/static' if os.path.isdir(f'{ROOT}/fonts/static') else f'{ROOT}/fonts'
     for w in ['Regular','Medium','SemiBold','Bold','ExtraBold']:
-        pdfmetrics.registerFont(TTFont('Onest-'+w, f'{ROOT}/fonts/Onest-{w}.ttf'))
+        pdfmetrics.registerFont(TTFont('Onest-'+w, f'{base}/Onest-{w}.ttf'))
     _reg = True
 
-def size_for(text, font, width_px):
+DIGIT_H = 0.724   # высота цифры в долях кегля (Onest)
+
+def size_by_height(cap_px):
+    """Кегль по измеренной высоте цифр.
+
+    Для коротких наклонных чисел ширина — плохая опора: прямоугольник
+    строки растянут наклоном, а на паре глифов ошибка трекинга даёт
+    заметный сдвиг. Высота от наклона не зависит.
+    """
+    return (cap_px*SY)/DIGIT_H
+
+def size_for(text, font, width_px, skew=0.0, cap_px=0.0):
+    """Кегль, при котором строка имеет измеренную ширину.
+
+    У наклонного начертания прямоугольник строки шире самого набора:
+    верх глифа уезжает вправо на tan(угол)*высоту. Если это не вычесть,
+    кегль завышается — на 12 градусах и крупных цифрах до 15 %.
+    """
     sw = pdfmetrics.stringWidth(text, font, 1.0)
-    return (max(width_px-W_BIAS,1)*SX)/sw if sw else 10.0
+    w = max(width_px - W_BIAS - (np.tan(np.radians(skew))*cap_px if skew else 0.0), 1)
+    return (w*SX)/sw if sw else 10.0
 
 def measure(img, block):
     """Снять метрики строк блока и сопоставить с текстами спеки."""
@@ -53,7 +75,11 @@ def measure(img, block):
     lines = []
     for bx in boxes:
         lines += find_lines(img, tuple(bx), **d)
-    lines.sort(key=lambda l:(l[1],l[0]))
+    # порядок чтения: сверху вниз, а внутри одной строки — слева направо.
+    # Верхние края фрагментов одной строки различаются на пару пикселей
+    # (выносные элементы), поэтому y огрубляем.
+    band = block.get('band', 14)
+    lines.sort(key=lambda l:(l[1]//band, l[0]))
     if 'skip' in block:
         lines = [l for i,l in enumerate(lines) if i not in block['skip']]
     if 'pick' in block:
@@ -126,25 +152,27 @@ def build(spec, src_dir='page_images_150dpi', out_dir='vector_pages',
             print(f"    [подбор] блок {b.get('box') or b['boxes']}: {font}  (по строкам: {gs})")
         else:
             font = b['font']
-        if 'size_ref' in b:
+        sk = b.get('skew', 0.0)
+        if b.get('fit') == 'height':
+            per=[size_by_height(m['cap']) for m in ms]
+        elif 'size_ref' in b:
             # ширину части строк измерить надёжно нельзя (светлый текст на
             # светлом фото, рядом контрастные детали кадра). Тогда кегль
             # берём по указанной строке, а от остальных — только позицию.
             r = ms[b['size_ref']]
-            per=[size_for(r['text'],font,r['w'])]*len(ms)
+            per=[size_for(r['text'],font,r['w'],sk,r['cap'])]*len(ms)
         elif isinstance(b.get('size'), (int,float)):
             per=[float(b['size'])]*len(ms)
         elif b.get('size','group')=='group':
-            sizes=[size_for(m['text'],font,m['w']) for m in ms]
+            sizes=[size_for(m['text'],font,m['w'],sk,m['cap']) for m in ms]
             sz = float(np.median(sizes)) if b.get('robust') else max(sizes)
             per=[sz]*len(ms)
         else:
-            per=[size_for(m['text'],font,m['w']) for m in ms]
+            per=[size_for(m['text'],font,m['w'],sk,m['cap']) for m in ms]
         rgb = b.get('rgb')
         if rgb is None:
             arr=np.array([m['rgb'] for m in ms]); rgb=tuple(arr.mean(0).astype(int))
         c.setFillColorRGB(*[v/255 for v in rgb])
-        sk = b.get('skew', 0.0)       # наклон в градусах (эмуляция курсива)
         for m,s in zip(ms,per):
             c.setFont(font, s)
             if sk:
