@@ -57,7 +57,7 @@ def to_pdfx(inp, out='build/ЭнергоГрупп_2025_печать_PDFX-1a.pdf
            '-dAutoRotatePages=/None','-dCompatibilityLevel=1.3',
            '-dSubsetFonts=true','-dEmbedAllFonts=true',
            '-dDownsampleColorImages=false','-dDownsampleGrayImages=false',
-           '-dColorImageFilter=/DCTEncode','-dJPEGQ=92',
+           '-dColorImageFilter=/DCTEncode','-dJPEGQ=88',
            f'-sOutputFile={out}', defps, inp]
     subprocess.run(cmd, check=True, capture_output=True)
     return out

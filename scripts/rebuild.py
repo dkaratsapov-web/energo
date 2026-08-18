@@ -203,7 +203,7 @@ def build(spec, src_dir='page_images_150dpi', out_dir='vector_pages',
 
     os.makedirs('build/backgrounds', exist_ok=True)
     bgp = f'build/backgrounds/pg{pg:02d}_clean.jpg'
-    cv2.imwrite(bgp, clean, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
+    cv2.imwrite(bgp, clean, [int(cv2.IMWRITE_JPEG_QUALITY), 88])
 
     # ---- вектор поверх ----
     os.makedirs(out_dir, exist_ok=True)
