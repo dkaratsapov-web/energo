@@ -6,3 +6,7 @@ build/pages/
 build/deck.pdf
 build/PDFX_def_abs.ps
 build_print*.log
+
+# кэш Python
+__pycache__/
+*.pyc
