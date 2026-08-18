@@ -14,7 +14,7 @@ inpaint-ом.
 """
 import cv2, numpy as np
 
-def text_mask(img, boxes=None, dark=False, k=31, thr=18, strict=False):
+def text_mask(img, boxes=None, dark=False, k=31, thr=18, strict=False, only=None):
     """Маска впечатанного текста. dark=True — тёмный текст на светлом фоне.
 
     strict=True добавляет цветовой фильтр (белый текст = яркий + ненасыщенный).
@@ -36,7 +36,7 @@ def text_mask(img, boxes=None, dark=False, k=31, thr=18, strict=False):
             white  = (V_ > 165) & (S_ < 70)
             # брендовый оранжевый (252,144,43) — заголовки и маркеры
             orange = (H_ > 3) & (H_ < 22) & (S_ > 110) & (V_ > 130)
-            col = white | orange
+            col = {'white':white, 'orange':orange}.get(only, white | orange)
         col = col.astype(np.uint8)*255
         m = cv2.bitwise_and(m, col)
     if boxes is not None:
@@ -57,11 +57,11 @@ def erase(img, boxes, dark=False, k=31, thr=18, grow=4, radius=12):
     return (out*(1-m3) + blur*m3).astype(np.uint8)
 
 def find_lines(img, box, dark=False, k=31, thr=18, min_h=8, min_w=20, gap=6,
-               row_frac=0.012):
+               row_frac=0.02, only=None):
     """Найти строки текста внутри box -> [(x0,y0,x1,y1), ...] в px страницы."""
     x0,y0,x1,y1 = box
     sub = img[y0:y1, x0:x1]
-    m = text_mask(sub, None, dark, k, thr, strict=True)
+    m = text_mask(sub, None, dark, k, thr, strict=True, only=only)
     m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, np.ones((3,3),np.uint8))
     m = cv2.morphologyEx(m, cv2.MORPH_OPEN,  np.ones((2,2),np.uint8))
     rows = (m>0).sum(1)
