@@ -1,0 +1,8 @@
+# промежуточные артефакты сборки — воспроизводятся из specs.py одной командой
+build/backgrounds/
+build/masks/
+build/print/
+build/pages/
+build/deck.pdf
+build/PDFX_def_abs.ps
+build_print*.log
