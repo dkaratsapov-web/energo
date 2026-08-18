@@ -76,7 +76,15 @@ def erase(img, boxes, dark=False, k=31, thr=18, grow=2, radius=4, keep=None,
     clean = cv2.inpaint(img, m, radius, cv2.INPAINT_TELEA)
     if keep is None:
         return clean
-    use = cv2.bitwise_and(m, cv2.bitwise_not(keep)) > 0
+    # Под текстом бывает и гладкая заливка, и детализированное фото.
+    # На градиенте инпейнт точен — там старый набор стираем целиком, иначе
+    # он выглядывает из-под нового призраком. На фото восстановить деталь
+    # нельзя, поэтому трогаем только кайму вокруг букв.
+    g = cv2.cvtColor(clean, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    mu = cv2.blur(g,(15,15))
+    sd = np.sqrt(np.maximum(cv2.blur(g*g,(15,15)) - mu*mu, 0))
+    smooth = cv2.blur((sd < 4.0).astype(np.float32), (25,25)) > 0.85
+    use = (m > 0) & (~(keep > 0) | smooth)
     out = img.copy()
     out[use] = clean[use]
     return out

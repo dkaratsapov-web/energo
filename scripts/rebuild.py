@@ -23,6 +23,7 @@ from upscale import upscale, add_bleed
 from shapes import rects as shape_rects
 from metrics import line_metrics, dot_circles
 from weight import guess_weight, WEIGHTS
+from bearings import bearings
 
 # Точный A4 = 210x297 мм. В исходнике страница была 595.4457x841.6913 pt
 # (210.06x296.93 мм) — расхождение в десятые доли миллиметра; типография
@@ -35,7 +36,7 @@ X = lambda px: px*SX
 Y = lambda py: PH - py*SY
 
 # маска шире глифа примерно на 1 px с каждой стороны (антиалиасинг)
-W_BIAS = 3.0
+W_BIAS = 2.0
 R_BIAS = 1.2
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -69,9 +70,12 @@ def size_for(text, font, width_px, skew=0.0, cap_px=0.0):
     верх глифа уезжает вправо на tan(угол)*высоту. Если это не вычесть,
     кегль завышается — на 12 градусах и крупных цифрах до 15 %.
     """
-    sw = pdfmetrics.stringWidth(text, font, 1.0)
+    # ширина ЧЕРНИЛ, а не пера: stringWidth — это advance, в него входят
+    # боковые отступы первого и последнего глифа, которых на растре нет
+    lsb, rsb = bearings(font, text)
+    sw = pdfmetrics.stringWidth(text, font, 1.0) - lsb - rsb
     w = max(width_px - W_BIAS - (np.tan(np.radians(skew))*cap_px if skew else 0.0), 1)
-    return (w*SX)/sw if sw else 10.0
+    return (w*SX)/sw if sw > 0 else 10.0
 
 def measure(img, block):
     """Снять метрики строк блока и сопоставить с текстами спеки."""
@@ -126,7 +130,12 @@ def _font_and_sizes(img, b, ms):
         per=[float(b['size'])]*len(ms)
     elif b.get('size','group')=='group':
         sizes=[size_for(m['text'],font,m['w'],sk,m['cap']) for m in ms]
-        sz = float(np.median(sizes)) if b.get('robust') else max(sizes)
+        if b.get('robust'):
+            sz = float(np.median(sizes))
+        else:
+            # опора на самую длинную строку: у неё наименьшая
+            # относительная погрешность измерения ширины
+            sz = sizes[int(np.argmax([m['w'] for m in ms]))]
         per=[sz]*len(ms)
     else:
         per=[size_for(m['text'],font,m['w'],sk,m['cap']) for m in ms]
@@ -239,15 +248,21 @@ def build(spec, src_dir='page_images_150dpi', out_dir='vector_pages',
         c.setFillColorRGB(*[v/255 for v in rgb])
         for m,s in zip(ms,per):
             c.setFont(font, s)
+            lsb, _ = bearings(font, m['text'])
+            x0 = X(m['x']) - lsb*s
+            # кегль в блоке общий, но ширина строки должна совпасть с
+            # оригиналом до пикселя: иначе старый набор выглядывает
+            # из-под нового призраком. Остаток добираем горизонтальным
+            # масштабом — на 1-2 % он неразличим.
+            k = _hscale(m, font, s, sk)
+            c.saveState()
             if sk:
-                # наклон вокруг базовой линии: сдвигаем верх глифа вправо
                 t = np.tan(np.radians(sk))
-                c.saveState()
                 c.transform(1, 0, t, 1, -t*Y(m['base']), 0)
-                c.drawString(X(m['x']), Y(m['base']) , m['text'])
-                c.restoreState()
-            else:
-                c.drawString(X(m['x']), Y(m['base']), m['text'])
+            if abs(k-1.0) > 1e-4:
+                c.transform(k, 0, 0, 1, x0*(1-k), 0)
+            c.drawString(x0, Y(m['base']), m['text'])
+            c.restoreState()
         if verbose:
             print(f"  стр{pg:02d} блок {b.get('box') or b['boxes']} шрифт={font} кегль={per[0]:.1f}pt "
                   f"строк={len(ms)} цвет={tuple(int(v) for v in rgb)}")
@@ -255,6 +270,15 @@ def build(spec, src_dir='page_images_150dpi', out_dir='vector_pages',
     if bleed_mm > 0:
         _set_trimbox(outp, bleed_pt)
     return outp
+
+def _hscale(m, font, size, skew=0.0):
+    """Во сколько раз сжать/растянуть строку, чтобы ширина совпала с оригиналом."""
+    lsb, rsb = bearings(font, m['text'])
+    ink_pt = (pdfmetrics.stringWidth(m['text'], font, 1.0) - lsb - rsb)*size
+    if ink_pt <= 0: return 1.0
+    target_px = m['w'] - W_BIAS - (np.tan(np.radians(skew))*m['cap'] if skew else 0.0)
+    k = (max(target_px,1)*SX)/ink_pt
+    return float(np.clip(k, 0.90, 1.10))
 
 def _new_ink_mask(blocks, dots, shapes, dot_rgb=(252,144,43)):
     """Куда ляжет новый вектор — в пикселях подложки.
@@ -278,12 +302,16 @@ def _new_ink_mask(blocks, dots, shapes, dot_rgb=(252,144,43)):
         sk = b.get('skew', 0.0)
         for m, size in zip(ms, per):
             c.setFont(font, size)
+            x0 = X(m['x']) - bearings(font, m['text'])[0]*size
+            k = _hscale(m, font, size, sk)
+            c.saveState()
             if sk:
                 t = np.tan(np.radians(sk))
-                c.saveState(); c.transform(1, 0, t, 1, -t*Y(m['base']), 0)
-                c.drawString(X(m['x']), Y(m['base']), m['text']); c.restoreState()
-            else:
-                c.drawString(X(m['x']), Y(m['base']), m['text'])
+                c.transform(1, 0, t, 1, -t*Y(m['base']), 0)
+            if abs(k-1.0) > 1e-4:
+                c.transform(k, 0, 0, 1, x0*(1-k), 0)
+            c.drawString(x0, Y(m['base']), m['text'])
+            c.restoreState()
     c.showPage(); c.save()
     doc = pymupdf.open(stream=buf.getvalue(), filetype='pdf')
     px = doc[0].get_pixmap(matrix=pymupdf.Matrix(BASE_W/PW, BASE_H/PH), colorspace='gray')
