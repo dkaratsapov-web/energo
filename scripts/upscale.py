@@ -14,11 +14,16 @@ JPEG-артефакты (они на печати заметнее, чем на 
 """
 import cv2, numpy as np
 
-def deblock(img, strength=3):
-    """Снять JPEG-блочность, сохранив края."""
+def deblock(img, strength=2):
+    """Снять JPEG-блочность, сохранив края.
+
+    Слабая настройка намеренно: сильный шумодав вместе с артефактами
+    съедает и настоящую мелкую фактуру — зерно бетона, снег, листву.
+    Лучше оставить немного шума, чем сгладить поверхность в пластик.
+    """
     return cv2.fastNlMeansDenoisingColored(img, None, strength, strength, 7, 21)
 
-def unsharp(img, sigma=1.1, amount=0.55, threshold=3):
+def unsharp(img, sigma=1.0, amount=0.62, threshold=3):
     """Мягкая нерезкая маска: возвращает край, съеденный интерполяцией."""
     blur = cv2.GaussianBlur(img, (0,0), sigma)
     sharp = cv2.addWeighted(img, 1+amount, blur, -amount, 0)
