@@ -17,7 +17,7 @@ from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from PIL import Image, ImageDraw, ImageFont
-from textmask import find_lines, erase
+from textmask import find_lines, erase, text_mask
 from pageio import load_page, fit
 from upscale import upscale, add_bleed
 from shapes import rects as shape_rects
@@ -194,14 +194,23 @@ def build(spec, src_dir='page_images_150dpi', out_dir='vector_pages',
     # Оставляем под стирание только кайму старых глифов, торчащую из-под
     # новых, — новый текст стоит на тех же координатах и того же кегля.
     keep = _new_ink_mask(blocks, dots, shapes, spec.get('dot_rgb',(252,144,43)))
-    # зоны блоков, где старый набор стирается целиком
+    # Зоны, где старый набор стирается целиком. Берём не прямоугольник
+    # строки, а форму самих глифов с запасом: прямоугольник затрагивает
+    # фон между словами и вокруг, и фоновый рисунок там подмывается.
     full = np.zeros((BASE_H, BASE_W), np.uint8)
     for b, ms, _f, _p in blocks:
         if not b.get('full_erase'): continue
         pad = b.get('pad',10)
+        box=[]
         for m in ms:
             x0,y0,x1,y1 = m['line']
-            full[max(0,y0-pad):min(BASE_H,y1+pad), max(0,x0-pad):min(BASE_W,x1+pad)] = 255
+            box.append((max(0,x0-pad), max(0,y0-pad),
+                        min(BASE_W,x1+pad), min(BASE_H,y1+pad)))
+        mk = cv2.bitwise_or(text_mask(img, box, False, b.get('k',31), b.get('thr',18)),
+                            text_mask(img, box, True,  b.get('k',31), b.get('thr',18)))
+        grow = b.get('full_grow', 5)
+        mk = cv2.dilate(mk, cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(grow*2+1,)*2))
+        full = cv2.bitwise_or(full, mk)
     os.makedirs('build/masks', exist_ok=True)
     cv2.imwrite(f'build/masks/pg{pg:02d}.png', keep)   # нужна для проверки артефактов
     clean = img
