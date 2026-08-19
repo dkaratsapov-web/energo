@@ -46,7 +46,7 @@ def text_mask(img, boxes=None, dark=False, k=31, thr=18, strict=False, only=None
     return m
 
 def erase(img, boxes, dark=False, k=31, thr=18, grow=2, radius=4, keep=None,
-          near=6):
+          near=6, full=None):
     """Стереть текст в boxes и вернуть чистый фон.
 
     keep — маска того, что и так будет закрашено новым вектором. Эти
@@ -55,7 +55,11 @@ def erase(img, boxes, dark=False, k=31, thr=18, grow=2, radius=4, keep=None,
     пятна вокруг букв. Реально восстанавливать нужно только кайму
     старого набора, торчащую из-под нового.
     """
-    m = text_mask(img, boxes, dark, k, thr)
+    # Для стирания берём отклонение от фона в обе стороны: у набора бывает
+    # тёмная тень или обводка, и маска «только светлее фона» оставляла её
+    # на месте — вокруг новых глифов проступал тёмный контур старых.
+    m = cv2.bitwise_or(text_mask(img, boxes, False, k, thr),
+                       text_mask(img, boxes, True,  k, thr))
     m = cv2.dilate(m, cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(grow*2+1,)*2))
     if keep is not None:
         # Прямоугольник строки шире самих букв, и внутрь него попадают
@@ -65,6 +69,8 @@ def erase(img, boxes, dark=False, k=31, thr=18, grow=2, radius=4, keep=None,
         # лежит вплотную к набору.
         band = cv2.dilate(keep, cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
                                                           (near*2+1,)*2))
+        if full is not None:
+            band = cv2.bitwise_or(band, full)   # зоны, где стираем целиком
         m = cv2.bitwise_and(m, band)
     if not m.any():
         return img
@@ -85,6 +91,8 @@ def erase(img, boxes, dark=False, k=31, thr=18, grow=2, radius=4, keep=None,
     sd = np.sqrt(np.maximum(cv2.blur(g*g,(15,15)) - mu*mu, 0))
     smooth = cv2.blur((sd < 4.0).astype(np.float32), (25,25)) > 0.85
     use = (m > 0) & (~(keep > 0) | smooth)
+    if full is not None:
+        use |= (m > 0) & (full > 0)
     out = img.copy()
     out[use] = clean[use]
     return out

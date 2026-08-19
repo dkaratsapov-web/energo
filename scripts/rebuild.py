@@ -194,13 +194,23 @@ def build(spec, src_dir='page_images_150dpi', out_dir='vector_pages',
     # Оставляем под стирание только кайму старых глифов, торчащую из-под
     # новых, — новый текст стоит на тех же координатах и того же кегля.
     keep = _new_ink_mask(blocks, dots, shapes, spec.get('dot_rgb',(252,144,43)))
+    # зоны блоков, где старый набор стирается целиком
+    full = np.zeros((BASE_H, BASE_W), np.uint8)
+    for b, ms, _f, _p in blocks:
+        if not b.get('full_erase'): continue
+        pad = b.get('pad',10)
+        for m in ms:
+            x0,y0,x1,y1 = m['line']
+            full[max(0,y0-pad):min(BASE_H,y1+pad), max(0,x0-pad):min(BASE_W,x1+pad)] = 255
     os.makedirs('build/masks', exist_ok=True)
     cv2.imwrite(f'build/masks/pg{pg:02d}.png', keep)   # нужна для проверки артефактов
     clean = img
     if light_boxes:
-        clean = erase(clean, light_boxes, dark=False, keep=keep, **spec.get('erase_opt',{}))
+        clean = erase(clean, light_boxes, dark=False, keep=keep, full=full,
+                      **spec.get('erase_opt',{}))
     if dark_boxes:
-        clean = erase(clean, dark_boxes, dark=True, keep=keep, **spec.get('erase_opt_dark',{}))
+        clean = erase(clean, dark_boxes, dark=True, keep=keep, full=full,
+                      **spec.get('erase_opt_dark',{}))
 
     # ---- подложка: разрешение и вылет ----
     factor = max(1, int(round(dpi/150.0)))
@@ -299,6 +309,10 @@ def _new_ink_mask(blocks, dots, shapes, dot_rgb=(252,144,43)):
     for (cx,cy,r) in dots:
         c.circle(X(cx), Y(cy), max(r-R_BIAS,1)*SX, stroke=0, fill=1)
     for (b, ms, font, per) in blocks:
+        # блок с full_erase в маску не попадает: старый набор под ним
+        # стирается целиком, а не только по кайме. Нужно там, где строка
+        # тусклая и её ширину с растра точно не снять
+        if b.get('full_erase'): continue
         sk = b.get('skew', 0.0)
         for m, size in zip(ms, per):
             c.setFont(font, size)

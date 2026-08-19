@@ -44,6 +44,31 @@ def preview(page, width=1400, with_ref=False):
     cv2.imwrite(out, img, [int(cv2.IMWRITE_JPEG_QUALITY), 92])
     return out
 
+def spread(left, right, width=2200):
+    """Разворот: две страницы рядом, как в готовом каталоге."""
+    imgs=[]
+    for n in (left, right):
+        if n is None:
+            imgs.append(None); continue
+        p = pymupdf.open(f'{OUT}/page{n:02d}.pdf')[0]
+        z = (width/2)/p.trimbox.width
+        px = p.get_pixmap(matrix=pymupdf.Matrix(z,z), clip=p.trimbox)
+        a = np.frombuffer(px.samples, np.uint8).reshape(px.height, px.width, px.n)
+        imgs.append(a[:,:,:3][:,:,::-1].copy())
+    h = max(i.shape[0] for i in imgs if i is not None)
+    parts=[]
+    for i in imgs:
+        if i is None:
+            i = np.full((h, width//2, 3), 245, np.uint8)
+        elif i.shape[0] != h:
+            i = cv2.resize(i,(int(i.shape[1]*h/i.shape[0]), h),interpolation=cv2.INTER_AREA)
+        parts.append(i)
+    img = np.hstack([parts[0], np.full((h,3,3),(200,200,200),np.uint8), parts[1]])
+    tag = f'{left:02d}-{right:02d}' if right else f'{left:02d}'
+    out = f'{PREV}/razvorot_{tag}.jpg'
+    cv2.imwrite(out, img, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
+    return out
+
 def approve(page):
     done = set(read_approved()); done.add(page)
     open(APPR,'w').write('\n'.join(str(x) for x in sorted(done)))
@@ -71,6 +96,11 @@ if __name__=='__main__':
     if cmd == 'make':
         for n in [int(x) for x in sys.argv[2:]]:
             make(n); print(preview(n, with_ref=True))
+    elif cmd == 'spread':
+        a = int(sys.argv[2]); b = int(sys.argv[3]) if len(sys.argv)>3 else None
+        for n in ([a,b] if b else [a]):
+            if not os.path.exists(f'{OUT}/page{n:02d}.pdf'): make(n)
+        print(spread(a,b))
     elif cmd == 'approve':
         print('утверждены:', approve(int(sys.argv[2])))
     elif cmd == 'assemble':

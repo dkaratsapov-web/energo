@@ -63,3 +63,24 @@ def dot_circles(img, box, min_r=5, max_r=20):
         if a < 0.55*np.pi*(w/2)**2: continue            # заполненность круга
         out.append((x0+cent[i][0], y0+cent[i][1], (w+h)/4.0))
     return sorted(out, key=lambda c:(c[1],c[0]))
+
+
+def skew_angle(img, line, dark=False, k=31, thr=18, only=None):
+    """Угол наклона набора в строке, градусы.
+
+    Оценивается по смещению центра масс чернил от строки к строке: у
+    наклонного шрифта верх глифа уходит вправо. Угол, взятый на глаз,
+    даёт расхождение по ширине в пару процентов — этого хватает, чтобы
+    из-под нового набора выглянул старый.
+    """
+    x0,y0,x1,y1 = line
+    sub = img[y0:y1, x0:x1]
+    m = text_mask(sub, None, dark, k, thr, strict=True, only=only)
+    ys, xs = np.nonzero(m)
+    if len(xs) < 50: return 0.0
+    rows = np.unique(ys)
+    if len(rows) < 6: return 0.0
+    cx = np.array([xs[ys==r].mean() for r in rows])
+    # верх изображения = меньший y; наклон вправо -> cx убывает с ростом y
+    a = np.polyfit(rows.astype(float), cx, 1)[0]
+    return float(np.degrees(np.arctan(-a)))
