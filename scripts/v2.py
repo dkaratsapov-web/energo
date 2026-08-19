@@ -11,7 +11,7 @@ import os, sys, subprocess
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE); sys.path.insert(0, os.path.dirname(_HERE))
 import cv2, numpy as np, pymupdf, pikepdf
-from rebuild import build, PW, PH
+from rebuild import build, PW, PH, ROOT
 from specs import SPECS
 
 OUT   = 'build/v2/slides'
@@ -42,6 +42,60 @@ def preview(page, width=1400, with_ref=False):
     else:
         img = a
     cv2.imwrite(out, img, [int(cv2.IMWRITE_JPEG_QUALITY), 92])
+    return out
+
+def _label(w, text, sub=''):
+    """Подпись кириллицей — OpenCV её не рисует, берём шрифт проекта."""
+    from PIL import Image as PImage, ImageDraw as PDraw, ImageFont as PFont
+    im = PImage.new('RGB', (w, 54), (22,22,26))
+    d = PDraw.Draw(im)
+    f  = PFont.truetype(f'{ROOT}/fonts/static/Onest-Bold.ttf', 30)
+    f2 = PFont.truetype(f'{ROOT}/fonts/static/Onest-Regular.ttf', 22)
+    d.text((16, 12), text, (255,255,255), font=f)
+    if sub:
+        d.text((16 + d.textlength(text, font=f) + 18, 18), sub, (150,150,160), font=f2)
+    return np.array(im)[:,:,::-1].copy()
+
+def render_spread(pages, width, source):
+    """Склеить две страницы в разворот. source: 'new' | 'ref'."""
+    from pageio import load_page
+    parts=[]
+    for n in pages:
+        if n is None:
+            parts.append(None); continue
+        if source == 'ref':
+            a = load_page(n)
+        else:
+            p = pymupdf.open(f'{OUT}/page{n:02d}.pdf')[0]
+            z = (width/2)/p.trimbox.width
+            px = p.get_pixmap(matrix=pymupdf.Matrix(z,z), clip=p.trimbox)
+            a = np.frombuffer(px.samples, np.uint8).reshape(px.height, px.width, px.n)[:,:,:3][:,:,::-1]
+        parts.append(a)
+    h = max(p.shape[0] for p in parts if p is not None)
+    out=[]
+    for p in parts:
+        if p is None:
+            p = np.full((h, width//2, 3), 245, np.uint8)
+        else:
+            p = cv2.resize(p, (int(p.shape[1]*h/p.shape[0]), h), interpolation=cv2.INTER_AREA)
+        out.append(p)
+    return np.hstack([out[0], np.full((h,3,3),(210,210,210),np.uint8), out[1]])
+
+def compare(left, right, width=2000):
+    """Разворот в формате до/после — референс сверху, новая сборка снизу."""
+    ref = render_spread([left,right], width, 'ref')
+    new = render_spread([left,right], width, 'new')
+    if new.shape[1] != ref.shape[1]:
+        new = cv2.resize(new, (ref.shape[1], int(new.shape[0]*ref.shape[1]/new.shape[1])),
+                         interpolation=cv2.INTER_AREA)
+    tag = f'{left}-{right}' if right else f'{left}'
+    w = ref.shape[1]
+    img = np.vstack([
+        _label(w, f'БЫЛО — развороты {tag}', 'исходный каталог, растр 150 dpi'), ref,
+        np.full((10,w,3),(22,22,26),np.uint8),
+        _label(w, f'СТАЛО — развороты {tag}', 'текст в векторе, подложка 300 dpi'), new])
+    out = f'{PREV}/sravnenie_{tag}.jpg'
+    cv2.imwrite(out, img, [int(cv2.IMWRITE_JPEG_QUALITY), 88])
     return out
 
 def spread(left, right, width=2200):
@@ -96,6 +150,11 @@ if __name__=='__main__':
     if cmd == 'make':
         for n in [int(x) for x in sys.argv[2:]]:
             make(n); print(preview(n, with_ref=True))
+    elif cmd == 'compare':
+        a = int(sys.argv[2]); b = int(sys.argv[3]) if len(sys.argv)>3 else None
+        for n in ([a,b] if b else [a]):
+            if not os.path.exists(f'{OUT}/page{n:02d}.pdf'): make(n)
+        print(compare(a,b))
     elif cmd == 'spread':
         a = int(sys.argv[2]); b = int(sys.argv[3]) if len(sys.argv)>3 else None
         for n in ([a,b] if b else [a]):
