@@ -14,3 +14,4 @@ __pycache__/
 *.pyc
 .agents/
 .claude/skills/
+build/v3/*_вёрстка.pdf
