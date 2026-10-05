@@ -51,13 +51,28 @@ def trace_layer(mask, turdsize=2, alphamax=1.0, opttolerance=0.2):
         return _parse_svg_paths(open(svg, encoding='utf-8', errors='ignore').read())
 
 def levels(img, lv=(0.18, 0.36, 0.58, 0.80), up=4, crop_bottom=0.0,
-           turdsize=2, alphamax=1.0, opttolerance=0.2):
-    """Разложить кадр на слои плотности и трассировать каждый."""
+           turdsize=2, alphamax=1.0, opttolerance=0.2, denoise=True,
+           sharpen=0.0):
+    """Разложить кадр на слои плотности и трассировать каждый.
+
+    denoise — сгладить небо, сохранив кромку конструкции. Без этого шум
+    матрицы попадает в маску и трассируется как рваная бахрома по краю.
+    sharpen — поднять контраст кромки перед разложением: на 124 dpi край
+    размазан на два-три пикселя, и уровни «плывут».
+    """
     g = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    if denoise:
+        # двусторонний фильтр: усредняет небо, но не трогает границу силуэта
+        g = cv2.bilateralFilter(g, 9, 28, 9)
     sky = cv2.GaussianBlur(
         cv2.dilate(g, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (41, 41))), (81, 81), 0)
     d = np.clip((sky - g)/max(np.percentile(sky - g, 99.5), 1e-3), 0, 1)
-    big = cv2.resize(d, None, fx=up, fy=up, interpolation=cv2.INTER_CUBIC)
+    if sharpen:
+        # нерезкая маска по карте плотности — кромка становится круче,
+        # и слои ложатся по самому краю, а не по его размытию
+        blur = cv2.GaussianBlur(d, (0, 0), 1.1)
+        d = np.clip(d + (d - blur)*sharpen, 0, 1)
+    big = cv2.resize(d, None, fx=up, fy=up, interpolation=cv2.INTER_LANCZOS4)
     if crop_bottom > 0:
         big[int(big.shape[0]*(1-crop_bottom)):] = 0
     out = []
@@ -65,7 +80,7 @@ def levels(img, lv=(0.18, 0.36, 0.58, 0.80), up=4, crop_bottom=0.0,
         m = (big > t).astype(np.uint8)
         # на светлых уровнях в маску лезет шум неба — там отсекаем крупнее,
         # иначе вокруг фермы появляются рыхлые «облака»
-        ts = turdsize * (14 if i == 0 else 6 if i == 1 else 2 if i == 2 else 1)
+        ts = turdsize * max(1, int(round(10 * (1 - i/max(len(lv)-1, 1))**2.2)))
         out.append((t, trace_layer(m, ts, alphamax, opttolerance),
                     big.shape[1], big.shape[0]))
     return out

@@ -26,9 +26,9 @@ def build():
     # трассировка potrace: кривые Безье вместо ломаной, четыре слоя
     # плотности сохраняют полутона тонких раскосов
     mask, _ = silhouette(img, thr=30, crop_bottom=0.30)
-    levels  = pt_levels(img, lv=(0.30, 0.47, 0.64, 0.82), up=4,
-                        crop_bottom=0.30, turdsize=4, alphamax=1.15,
-                        opttolerance=0.18)
+    levels  = pt_levels(img, lv=(0.24, 0.36, 0.48, 0.60, 0.72, 0.86), up=8,
+                        crop_bottom=0.30, turdsize=3, alphamax=1.0,
+                        opttolerance=0.08, denoise=True, sharpen=0.75)
     sky = sky_profile(img, mask, steps=200)
     sh, sw = img.shape[:2]
 
@@ -48,7 +48,7 @@ def build():
 
     # — силуэт: кадр кадрируется по высоте полосы, низ уходит под текст —
     pt_draw(c, levels, -B, PAGE_H - H*0.86, PAGE_W + 2*B, H*0.86,
-            (12, 13, 28), a0=0.42, a1=1.0)
+            (12, 13, 28), a0=0.30, a1=1.0)
 
     # — низ притемнён под набор, вектором —
     for i in range(170):
