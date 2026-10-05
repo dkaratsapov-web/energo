@@ -13,7 +13,7 @@ import os, sys
 sys.path.insert(0, 'scripts')
 import cv2
 from render import Page, preview
-from trace import silhouette, sky_profile, draw_silhouette
+from trace import silhouette, silhouette_levels, sky_profile, draw_levels
 from graphics import gradient, nodes
 from ds import *
 
@@ -22,8 +22,11 @@ SRC = 'incoming/Силуэт ЛЭП в сумеречном небе.png'
 
 def build():
     img = cv2.imread(SRC)
-    mask, polys = silhouette(img, thr=34, up=3, min_area=24, eps=0.7,
-                             crop_bottom=0.30)
+    # многоуровневая обводка: бинарный порог терял тонкие раскосы,
+    # полутона сохраняют форму фермы
+    mask, _ = silhouette(img, thr=30, crop_bottom=0.30)
+    levels  = silhouette_levels(img, up=6, min_area=3, eps=0.12,
+                                crop_bottom=0.30, smooth=2)
     sky = sky_profile(img, mask, steps=200)
     sh, sw = img.shape[:2]
 
@@ -42,8 +45,8 @@ def build():
         c.rect(-B, -B + H*(1 - (i+1)/n), PAGE_W + 2*B, H/n + 0.7, stroke=0, fill=1)
 
     # — силуэт: кадр кадрируется по высоте полосы, низ уходит под текст —
-    draw_silhouette(c, polys, -B, PAGE_H - H*0.86, PAGE_W + 2*B, H*0.86,
-                    sw, sh, (14, 15, 30), alpha=0.97)
+    draw_levels(c, levels, -B, PAGE_H - H*0.86, PAGE_W + 2*B, H*0.86,
+                sw, sh, (12, 13, 28))
 
     # — низ притемнён под набор, вектором —
     for i in range(170):
