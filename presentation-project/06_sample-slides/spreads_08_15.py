@@ -27,8 +27,8 @@
 import os, sys
 sys.path.insert(0, 'scripts')
 from spread import Spread, build, L, R
+from layouts import base
 from render import preview
-from graphics import gradient, field_lines, grid
 from ds import *
 
 OUT = 'presentation-project/06_sample-slides'
@@ -69,22 +69,10 @@ def column(photos, dpi=300):
 def service(s, n, num, section_l, section_r, title, items, photos,
             dark=True, item_size=12, step=20*mm, lead=1.40):
     """Разворот серии «направление работ»."""
-    c, B = s.c, BLEED
-    if dark:
-        gradient(c, -B, -B, SPREAD_W + 2*B, PAGE_H + 2*B, (28, 32, 74), (48, 39, 82))
-        field_lines(c, -B, PAGE_H - 96*mm, SPREAD_W + 2*B, 96*mm + B, rows=16,
-                    seed=n, alpha=(0.03, 0.13))
-        s.fold_shade((10, 11, 26), w=30*mm, alpha=0.26)
-        line, muted, ghost = C.LINE_D, C.MUTED_D, (56, 58, 104)
-    else:
-        s.fill(C.PAPER)
-        grid(c, -B, -B, SPREAD_W + 2*B, PAGE_H + 2*B, 14*mm, C.LINE_L, 0.25, 0.5)
-        s.fold_shade((120, 118, 112), w=26*mm, alpha=0.13)
-        line, muted, ghost = C.LINE_L, C.MUTED_L, (227, 225, 220)
-
-    s.heads(section_l, section_r, dark=dark)
-    s.folios(n, dark=dark)
-
+    # Фон, шапка и колонцифры — общая схема каталога (scripts/layouts.py):
+    # одна реализация на все развороты, иначе они расходятся по мелочам.
+    t = base(s, n, section_l, section_r, dark=dark, seed=n)
+    line, muted, ghost = t.line, t.muted, t.ghost
     # ── левая полоса: направление и перечень работ ───────────────────────
     xl, wl = px(L, 0, 12)
     s.eyebrow(L, f'НАПРАВЛЕНИЕ {num} ИЗ 10')
@@ -102,9 +90,9 @@ def service(s, n, num, section_l, section_r, title, items, photos,
     # Перечень идёт от общей для серии горизонтали, но у длинного названия
     # (четыре строки на 14–15) отступает от его последней строки.
     y = min(200*mm, yb - 20*mm)
-    for i, t in enumerate(items, 1):
+    for i, it in enumerate(items, 1):
         s.rule(xl, y + 11*mm, wl, line, 0.5)
-        s.numbered(i, xl, y, t, dark=dark, size=item_size, num_w=13*mm,
+        s.numbered(i, xl, y, it, dark=dark, size=item_size, num_w=13*mm,
                    width=wl, lead=lead)
         y -= step
     s.rule(xl, y + 11*mm, wl, line, 0.5)

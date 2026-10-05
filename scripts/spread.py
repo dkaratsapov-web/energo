@@ -46,7 +46,7 @@ class Spread(Slide):
         self.c.setFillColorRGB(*rgb(color))
         self.c.rect(-b, -b, SPREAD_W + 2*b, PAGE_H + 2*b, stroke=0, fill=1)
 
-    def band(self, y, h, color, alpha=1.0):
+    def band(self, y, h, color, alpha=None):
         """Горизонтальная плашка через весь разворот.
 
         Горизонтальный раздел тона — единственный, который на сшивке
@@ -55,23 +55,41 @@ class Spread(Slide):
         """
         b = BLEED
         self.c.saveState()
-        self.c.setFillColorRGB(*rgb(color), alpha=alpha)
+        if alpha is None:
+            self.c.setFillColorRGB(*rgb(color))
+        else:
+            self.c.setFillColorRGB(*rgb(color), alpha=alpha)
         self.c.rect(-b, y, SPREAD_W + 2*b, h, stroke=0, fill=1)
         self.c.restoreState()
 
-    def fold_shade(self, color, w=26*mm, alpha=0.30, steps=60):
+    def fold_shade(self, color, w=26*mm, alpha=0.30, steps=48, bg=None, rows=40):
         """Притенение у сгиба с обеих сторон — так разворот читается как
-        согнутый лист, а не как два приставленных друг к другу листа.
-        Тон симметричен относительно сгиба: смещение на сшивке незаметно."""
+        согнутый лист, а не как два приставленных друг к другу листа. Тон
+        симметричен относительно сгиба: смещение на сшивке незаметно.
+
+        bg — фон под притенением. Если он задан, тень рисуется НЕПРОЗРАЧНЫМИ
+        плашками уже смешанного цвета: PDF/X-1a живой прозрачности не
+        допускает, а её сведение растрирует полосу вместе с набором.
+        """
+        from graphics import mix
         b = BLEED
         self.c.saveState()
+        dw = w/steps
+        H = PAGE_H + 2*b
         for i in range(steps):
             t = (i + 0.5)/steps                   # 0 у сгиба → 1 на краю зоны
             a = alpha*(1 - t)**1.8
             dx = w*t
-            self.c.setFillColorRGB(*rgb(color), alpha=a)
-            self.c.rect(FOLD - dx - w/steps, -b, w/steps, PAGE_H + 2*b, stroke=0, fill=1)
-            self.c.rect(FOLD + dx,           -b, w/steps, PAGE_H + 2*b, stroke=0, fill=1)
+            if bg is None:
+                self.c.setFillColorRGB(*rgb(color), alpha=a)
+                self.c.rect(FOLD - dx - dw, -b, dw, H, stroke=0, fill=1)
+                self.c.rect(FOLD + dx,      -b, dw, H, stroke=0, fill=1)
+                continue
+            for j in range(rows):                 # фон меняется по вертикали
+                yy = -b + H*j/rows
+                self.c.setFillColorRGB(*rgb(mix(color, bg.at(yy + H/rows/2), a)))
+                self.c.rect(FOLD - dx - dw, yy, dw, H/rows + 0.6, stroke=0, fill=1)
+                self.c.rect(FOLD + dx,      yy, dw, H/rows + 0.6, stroke=0, fill=1)
         self.c.restoreState()
 
     # ── служебные элементы ───────────────────────────────────────────────

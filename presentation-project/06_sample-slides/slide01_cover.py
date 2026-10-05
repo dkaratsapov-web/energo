@@ -47,14 +47,24 @@ def build():
         c.rect(-B, -B + H*(1 - (i+1)/n), PAGE_W + 2*B, H/n + 0.7, stroke=0, fill=1)
 
     # — силуэт: кадр кадрируется по высоте полосы, низ уходит под текст —
+    # Слои рисуются непрозрачной градацией тона, а не наложением
+    # прозрачностей: PDF/X-1a живой прозрачности не допускает, и ghostscript
+    # сводит её растрированием ВСЕЙ полосы — вместе с набором. Именно так
+    # каталог и был загублен в прошлый раз.
     pt_draw(c, levels, -B, PAGE_H - H*0.86, PAGE_W + 2*B, H*0.86,
-            (12, 13, 28), a0=0.30, a1=1.0)
+            (12, 13, 28), ramp=((74, 80, 122), (10, 11, 26)))
 
-    # — низ притемнён под набор, вектором —
+    # — низ притемнён под набор: ступени СМЕШАННОГО цвета, без прозрачности —
+    from graphics import mix
+    SKY = lambda yy: sky[min(int((1 - (yy + B)/H)*n), n-1)]
     for i in range(170):
         t = i/169
-        c.setFillColorRGB(*rgb(C.PURPLE_DEEP), alpha=0.97*(t**1.5))
-        c.rect(-B, 150*mm*(1 - (i+1)/170) - B, PAGE_W + 2*B, 150*mm/170 + 0.7, stroke=0, fill=1)
+        yy = 150*mm*(1 - (i+1)/170) - B
+        base_col = [SKY(yy)[k]*(1 - min(max((1 - (yy + B)/H - 0.55)/0.45, 0), 1)**1.3)
+                    + C.PURPLE_DEEP[k]*min(max((1 - (yy + B)/H - 0.55)/0.45, 0), 1)**1.3
+                    for k in range(3)]
+        c.setFillColorRGB(*[v/255 for v in mix(C.PURPLE_DEEP, base_col, 0.97*(t**1.5))])
+        c.rect(-B, yy, PAGE_W + 2*B, 150*mm/170 + 0.7, stroke=0, fill=1)
 
     # — шапка —
     p.text('ГРУППА КОМПАНИЙ', x, PAGE_H - MARGIN_TOP - 4,

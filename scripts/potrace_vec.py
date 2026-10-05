@@ -85,17 +85,31 @@ def levels(img, lv=(0.18, 0.36, 0.58, 0.80), up=4, crop_bottom=0.0,
                     big.shape[1], big.shape[0]))
     return out
 
-def draw(c, layers, ox, oy, w, h, color, a0=0.38, a1=1.0):
-    """Отрисовать слои на canvas. Координаты potrace: y вверх от низа."""
+def draw(c, layers, ox, oy, w, h, color, a0=0.38, a1=1.0, ramp=None):
+    """Отрисовать слои на canvas. Координаты potrace: y вверх от низа.
+
+    ramp=(светлый, тёмный) рисует слои НЕПРОЗРАЧНЫМИ цветами по градации от
+    светлого к тёмному вместо наложения прозрачностей. Так и задумано для
+    печати: PDF/X-1a живой прозрачности не допускает, а её сведение в
+    ghostscript растрирует полосу целиком — вместе с набором.
+    """
     from reportlab.pdfgen.canvas import FILL_EVEN_ODD
     n = len(layers)
     for i, (t, paths, sw, sh) in enumerate(layers):
-        alpha = a0 + (a1 - a0)*(i/(n-1))**0.75 if n > 1 else a1
+        k = (i/(n-1))**0.75 if n > 1 else 1.0
+        alpha = a0 + (a1 - a0)*k
+        col = color
+        if ramp is not None:
+            col = tuple(ramp[0][j] + (ramp[1][j] - ramp[0][j])*k for j in range(3))
+            alpha = None
         sx, sy = w/sw, h/sh
         X = lambda v: ox + v*sx
         Y = lambda v: oy + v*sy          # potrace уже отдаёт y снизу вверх
         c.saveState()
-        c.setFillColorRGB(*[v/255 for v in color], alpha=alpha)
+        if alpha is None:
+            c.setFillColorRGB(*[v/255 for v in col])
+        else:
+            c.setFillColorRGB(*[v/255 for v in col], alpha=alpha)
         for cmds in paths:
             p = c.beginPath(); cx = cy = 0.0; sx0 = sy0 = 0.0; started = False
             for cmd, nums in cmds:

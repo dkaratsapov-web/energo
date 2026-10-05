@@ -25,6 +25,19 @@ def check(path):
                       f'нарушений {bad_trim})')
     line(bad_bleed==0, f'вылет >= 4 мм со всех сторон (нарушений {bad_bleed})')
 
+    # Живая прозрачность. PDF/X-1a её не допускает, а ghostscript сводит её
+    # РАСТРИРОВАНИЕМ ВСЕЙ ПОЛОСЫ — вместе с набором. Проверять надо вёрстку
+    # ДО конвертации: в готовом файле прозрачности уже нет, зато нет и текста.
+    import pikepdf as _pk
+    with _pk.open(path) as _p:
+        tr = set()
+        for i, pg in enumerate(_p.pages, 1):
+            for _, v in dict(pg.get('/Resources', {}).get('/ExtGState', {})).items():
+                if float(v.get('/ca', 1)) < 1 or float(v.get('/CA', 1)) < 1:
+                    tr.add(i)
+    line(not tr, 'без живой прозрачности'
+                 + (f' — есть на полосах {sorted(tr)}' if tr else ''))
+
     # шрифты
     fonts=set(); notemb=set()
     for p in d:

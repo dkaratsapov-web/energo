@@ -24,7 +24,7 @@ import os, sys
 sys.path.insert(0, 'scripts')
 from spread import Spread, build, L, R
 from render import preview
-from graphics import gradient, field_lines, grid
+from graphics import gradient, field_lines, grid, Bg, mix
 from ds import *
 
 OUT = 'presentation-project/06_sample-slides'
@@ -33,12 +33,13 @@ OUT = 'presentation-project/06_sample-slides'
 # ══════════════════════════════════ 2–3 · ФОНД | ЧТО МЫ СТРОИМ ══════════
 def spread_02_03(s):
     c, B = s.c, BLEED
+    bg = Bg((30, 34, 78), (52, 40, 82), -B, PAGE_H + 2*B)
     gradient(c, -B, -B, SPREAD_W + 2*B, PAGE_H + 2*B, (30, 34, 78), (52, 40, 82))
     # силовые линии идут сквозь разворот одним полем: рисунок фона не
     # обрывается на сгибе, и разворот читается одним листом
     field_lines(c, -B, 118*mm, SPREAD_W + 2*B, PAGE_H - 96*mm, rows=30, seed=4,
-                alpha=(0.04, 0.17))
-    s.fold_shade((10, 11, 26), w=30*mm, alpha=0.26)
+                alpha=(0.04, 0.17), bg=bg)
+    s.fold_shade((10, 11, 26), w=30*mm, alpha=0.26, bg=bg)
 
     s.heads('Социальная позиция', 'Что мы строим')
     s.folios(2)
@@ -101,7 +102,8 @@ def spread_02_03(s):
 def spread_04_05(s):
     c, B = s.c, BLEED
     s.fill(C.PAPER)
-    grid(c, -B, -B, SPREAD_W + 2*B, PAGE_H + 2*B, 14*mm, C.LINE_L, 0.25, 0.5)
+    grid(c, -B, -B, SPREAD_W + 2*B, PAGE_H + 2*B, 14*mm, C.LINE_L, 0.25, 0.5,
+         bg=Bg(C.PAPER))
 
     # ── плашка динамики: горизонтальная, вдоль сгиба ─────────────────────
     # Диаграмма — единственный на развороте объект, идущий из полосы в
@@ -237,10 +239,11 @@ def _growth(s, BH):
 # ═════════════════════════ 6–7 · ЦИФРЫ | НАПРАВЛЕНИЯ РАБОТ ══════════════
 def spread_06_07(s):
     c, B = s.c, BLEED
+    bg = Bg((28, 32, 74), (46, 38, 80), -B, PAGE_H + 2*B)
     gradient(c, -B, -B, SPREAD_W + 2*B, PAGE_H + 2*B, (28, 32, 74), (46, 38, 80))
     field_lines(c, -B, PAGE_H - 92*mm, SPREAD_W + 2*B, 92*mm + B, rows=16, seed=9,
-                alpha=(0.03, 0.13))
-    s.fold_shade((10, 11, 26), w=30*mm, alpha=0.26)
+                alpha=(0.03, 0.13), bg=bg)
+    s.fold_shade((10, 11, 26), w=30*mm, alpha=0.26, bg=bg)
 
     s.heads('Компания в цифрах', 'Направления работ')
     s.folios(6)
