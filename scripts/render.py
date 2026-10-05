@@ -53,6 +53,23 @@ class Page:
         h += (BLEED if 'b' in bleed_sides else 0) + (BLEED if 't' in bleed_sides else 0)
         self.c.drawImage(path, x, y, width=w, height=h, mask=None)
 
+    def photo(self, path, x, y, w, h, dpi=300, anchor='c'):
+        """Кадр в прямоугольник: обрезка «по заполнению» и пересчёт ровно под
+        печатное разрешение. Возвращает фактическое разрешение кадра в dpi —
+        его проверяет scripts/qa_images.py по готовому файлу.
+
+        Лишних пикселей в PDF не остаётся: кадр кладётся в том размере, в
+        каком печатается. Растягивать кадр метод не станет — если пикселей
+        меньше нужного, он положит что есть, и проверка это покажет.
+        """
+        from photos import fit
+        from reportlab.lib.utils import ImageReader
+        from PIL import Image
+        a, eff = fit(path, w/mm, h/mm, dpi, anchor)
+        self.c.drawImage(ImageReader(Image.fromarray(a[:, :, ::-1])),
+                         x, y, width=w, height=h, mask=None)
+        return eff
+
     def veil(self, color, alpha, x=None, y=None, w=None, h=None):
         """Полупрозрачная вуаль поверх фото, чтобы текст читался."""
         self.c.saveState(); self.c.setFillColorRGB(*rgb(color), alpha=alpha)
