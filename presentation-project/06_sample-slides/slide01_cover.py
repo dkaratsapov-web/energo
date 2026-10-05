@@ -1,15 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-Полоса 1 — обложка. Направление B: крупная типографика на тёмном.
+Полоса 1 — обложка. Полностью вектор, ни одного растрового пикселя.
 
-Текст взят из текущего каталога без изменений:
+Текст и цифры взяты из текущего каталога без изменений:
     КОМПЛЕКСНОЕ СТРОИТЕЛЬСТВО · #2025
-Добавлены только те данные, что уже есть внутри каталога (полоса 6), —
-они вынесены на обложку как доказательство масштаба.
+    25 800 км · 1 224 подстанции · 17 регионов (полоса 6 исходника)
+
+Фотография на обложке не используется сознательно: исходников съёмки нет,
+а растр 150 dpi — та самая причина, по которой каталог пересобирается.
+Опора и провода построены геометрией и резки при любом увеличении.
 """
 import os, sys
 sys.path.insert(0, 'scripts')
 from render import Page, preview
+from graphics import gradient, tower, wire, grid
 from ds import *
 
 OUT = 'presentation-project/06_sample-slides'
@@ -17,46 +21,65 @@ OUT = 'presentation-project/06_sample-slides'
 def build():
     p = Page(f'{OUT}/slide01_cover.pdf')
     c = p.c
-
-    # Фото ЛЭП на вылет, уходящее в фирменный фиолетовый к низу полосы
-    p.image(f'presentation-project/05_assets/cover_bg.jpg',
-            0, 0, PAGE_W, PAGE_H, bleed_sides=('l','r','t','b'))
-
-    x, _ = col_x(0, 12)                    # левое поле наборной полосы
+    B = BLEED
+    x, _  = col_x(0, 12)
     right = PAGE_W - MARGIN_OUTER
 
-    # — верх: знак компании и год —
+    # — фон: градиент ночного неба, вектор —
+    gradient(c, -B, -B, PAGE_W+2*B, PAGE_H+2*B, (26, 32, 74), (58, 42, 86))
+
+    # — технический модуль, еле заметный —
+    grid(c, -B, -B, PAGE_W+2*B, PAGE_H+2*B, 14*mm, C.LINE_D, 0.18, 0.16)
+
+    # — провода уходят за обрез, задавая диагональ —
+    for k, (y0, y1, sg, a) in enumerate([
+            (236*mm, 214*mm, 12*mm, 0.50), (228*mm, 206*mm, 14*mm, 0.38),
+            (196*mm, 178*mm, 10*mm, 0.30), (188*mm, 170*mm, 11*mm, 0.22)]):
+        wire(c, -B, y0, PAGE_W+B, y1, sg, C.MUTED_D, 0.7, a)
+
+    # — опора: главный графический объект, уходит за правый обрез —
+    tower(c, PAGE_W*0.70, 92*mm, 150*mm, C.MUTED_D, weight=1.05, alpha=0.60)
+    tower(c, PAGE_W*0.14,  118*mm, 78*mm, C.MUTED_D, weight=0.7,  alpha=0.26)
+
+    # — низ полосы притемнён под текст: вектор, не растр —
+    c.saveState()
+    for i in range(140):
+        t = i/139
+        c.setFillColorRGB(*rgb(C.PURPLE_DEEP), alpha=0.92*(t**1.5))
+        yy = 150*mm*(1 - (i+1)/140) - B
+        c.rect(-B, yy, PAGE_W+2*B, 150*mm/140 + 0.6, stroke=0, fill=1)
+    c.restoreState()
+
+    # — шапка —
     p.text('ГРУППА КОМПАНИЙ', x, PAGE_H - MARGIN_TOP - 4,
            T.FONT_MED, T.MICRO, C.MUTED_D, track=T.TRACK_CAPS)
     p.text('ЭНЕРГО ГРУПП', x, PAGE_H - MARGIN_TOP - 20,
            T.FONT_BLACK, 17, C.ORANGE, track=10)
-    # год — под знаком компании, иначе наезжает на логотип в углу подложки
     p.text('КАТАЛОГ 2025', x, PAGE_H - MARGIN_TOP - 38,
            T.FONT_MED, T.MICRO, C.MUTED_D, track=T.TRACK_CAPS)
     p.rule(x, PAGE_H - MARGIN_TOP - 48, right - x, C.LINE_D, 0.5)
 
-    # — заголовок: две строки во всю ширину полосы —
-    base = 132*mm
+    # — заголовок —
+    base = 118*mm
     head = ['КОМПЛЕКСНОЕ', 'СТРОИТЕЛЬСТВО']
     size = p.fit_size(head, right - x, T.FONT_BLACK, T.DISPLAY, track=-12)
     p.lines(head, x, base, T.FONT_BLACK, size, C.WHITE, T.LEAD_DISPLAY, track=-12)
 
-    # — подзаголовок: кто мы, одной строкой —
     p.lines(['Проектирование, строительство и ввод в эксплуатацию',
              'объектов энергетики по всей России'],
-            x, base - size*T.LEAD_DISPLAY - 16*mm,
+            x, base - size*T.LEAD_DISPLAY - 14*mm,
             T.FONT_BOOK, T.H3, C.MUTED_D, T.LEAD_H2)
 
-    # — доказательство масштаба: три цифры из каталога —
-    y = MARGIN_BOTTOM + 30*mm
-    p.rule(x, y + 20*mm, right - x, C.LINE_D, 0.5)
-    facts = [('25 800', 'км проводов'), ('1 224', 'подстанции'), ('17', 'регионов')]
-    for i, (num, cap) in enumerate(facts):
-        cx, cw = col_x(i*4, 4)
+    # — цифры: доказательство масштаба —
+    y = MARGIN_BOTTOM + 28*mm
+    p.rule(x, y + 19*mm, right - x, C.LINE_D, 0.5)
+    for i, (num, cap) in enumerate([('25 800', 'км проводов'),
+                                    ('1 224', 'подстанции'),
+                                    ('17', 'регионов')]):
+        cx, _ = col_x(i*4, 4)
         p.text(num, cx, y, T.FONT_BLACK, 30, C.ORANGE, track=-10)
         p.text(cap, cx, y - 7*mm, T.FONT_BOOK, T.SMALL, C.MUTED_D)
 
-    # — низ: год выпуска как в оригинале —
     p.text('#2025', x, MARGIN_BOTTOM, T.FONT_MED, T.BODY, C.MUTED_D, track=30)
 
     path = p.save()
