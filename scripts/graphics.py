@@ -104,3 +104,121 @@ def grid(c, x, y, w, h, step, color, weight=0.2, alpha=0.5):
     for i in range(n): c.line(x+i*step, y, x+i*step, y+h)
     for j in range(int(h/step)+1): c.line(x, y+j*step, x+w, y+j*step)
     c.restoreState()
+
+
+# ── Генеративная графика ─────────────────────────────────────────────────
+
+def _noise2(x, y, seed=0):
+    """Гладкое псевдослучайное поле: сумма синусов с несоизмеримыми частотами.
+    Даёт органичное течение без периодических повторов, видимых глазу."""
+    s = seed*0.37
+    return (math.sin(x*1.00 + s) * math.cos(y*0.73 - s*1.3) +
+            math.sin(x*2.17 - y*1.31 + s*0.7) * 0.55 +
+            math.sin(y*3.07 + x*0.41 - s*2.1) * 0.28 +
+            math.sin((x+y)*4.73 + s*3.3) * 0.14)
+
+def flow_field(c, x, y, w, h, n=520, seed=7, base=(150,160,210), accent=(224,135,47),
+               accent_ratio=0.07, scale=0.9, steps=120, step_len=None,
+               weight=(0.22, 0.75), alpha=(0.05, 0.42)):
+    """Поток линий вдоль векторного поля.
+
+    Линии стартуют от нижней кромки и текут вверх, подчиняясь полю; часть
+    подсвечена фирменным оранжевым. Плотность и прозрачность растут к низу —
+    так графика уплотняется там, где лежит заголовок, и уходит в фон вверху.
+    """
+    import random
+    rnd = random.Random(seed)
+    step_len = step_len or h/steps*1.15
+    c.saveState(); c.setLineCap(1)
+    for i in range(n):
+        # больше линий у нижней кромки: распределение смещено вниз
+        px = x - w*0.12 + rnd.random()*w*1.24
+        py = y - h*0.05 + (rnd.random()**2.2)*h*1.05
+        t = (py - y)/h                      # 0 — низ, 1 — верх
+        is_acc = rnd.random() < accent_ratio
+        col = accent if is_acc else base
+        a = alpha[0] + (alpha[1]-alpha[0])*(1-t)**1.7
+        if is_acc: a = min(a*1.9, 0.72)
+        lw = weight[0] + (weight[1]-weight[0])*rnd.random()
+        if is_acc: lw *= 1.25
+        c.setStrokeColorRGB(*[v/255 for v in col], alpha=a)
+        c.setLineWidth(lw)
+        p = c.beginPath(); p.moveTo(px, py)
+        cx, cy = px, py
+        for _ in range(int(steps*(0.35 + 0.65*rnd.random()))):
+            ang = _noise2(cx/w*scale*6.0, cy/h*scale*6.0, seed) * 0.9 + 1.18
+            cx += math.cos(ang)*step_len
+            cy += math.sin(ang)*step_len
+            if not (x-w*0.2 < cx < x+w*1.2 and y-h*0.2 < cy < y+h*1.2): break
+            p.lineTo(cx, cy)
+        c.drawPath(p, stroke=1, fill=0)
+    c.restoreState()
+
+def nodes(c, pts, color, r=1.5, glow=True, alpha=0.9):
+    """Узлы сети: точка с мягким ореолом. Ореол — концентрические круги,
+    прозрачность PDF поддерживает без растрирования."""
+    c.saveState()
+    for (px, py, k) in pts:
+        if glow:
+            for j in range(7, 0, -1):
+                c.setFillColorRGB(*[v/255 for v in color], alpha=alpha*0.045*k)
+                c.circle(px, py, r*k*(1 + j*0.85), stroke=0, fill=1)
+        c.setFillColorRGB(*[v/255 for v in color], alpha=min(alpha*k, 1))
+        c.circle(px, py, r*k, stroke=0, fill=1)
+    c.restoreState()
+
+
+def field_lines(c, x, y, w, h, rows=46, seed=3, base=(132,146,205), accent=(224,135,47),
+                accent_rows=(7, 19, 33), amp=(4, 26), alpha=(0.08, 0.34), weight=0.5):
+    """Силовые линии: горизонтальные волны разной амплитуды и фазы.
+
+    В отличие от свободного потока линии не сбиваются в жгуты и не спорят
+    с набором — поле читается как ровная ритмическая структура.
+    """
+    import random
+    rnd = random.Random(seed)
+    c.saveState(); c.setLineCap(1)
+    for i in range(rows):
+        t  = i/(rows-1)
+        yy = y + h*t
+        a  = amp[0] + (amp[1]-amp[0])*abs(math.sin(t*math.pi*1.3 + 0.4))
+        ph = rnd.random()*math.tau
+        fr = 1.1 + rnd.random()*1.5
+        acc = i in accent_rows
+        col = accent if acc else base
+        al  = (alpha[0] + (alpha[1]-alpha[0])*(1-abs(t-0.5)*1.4))
+        c.setStrokeColorRGB(*[v/255 for v in col], alpha=min(al*(2.1 if acc else 1), 0.8))
+        c.setLineWidth(weight*(1.5 if acc else 1) * (0.6 + rnd.random()*0.8))
+        p = c.beginPath(); p.moveTo(x, yy)
+        for k in range(1, 97):
+            tx = k/96
+            px = x + w*tx
+            py = yy + math.sin(tx*math.pi*fr + ph)*a + math.sin(tx*math.pi*fr*2.7 + ph*1.7)*a*0.22
+            p.lineTo(px, py)
+        c.drawPath(p, stroke=1, fill=0)
+    c.restoreState()
+
+def network(c, x, y, w, h, n=34, seed=5, base=(132,146,205), accent=(224,135,47),
+            link_dist=0.30, alpha_link=0.30, alpha_node=0.85):
+    """Граф энергосистемы: узлы и связи между близкими. Узлы покрупнее —
+    оранжевые, как опорные подстанции."""
+    import random
+    rnd = random.Random(seed)
+    pts = []
+    for i in range(n):
+        pts.append((x + rnd.random()*w, y + rnd.random()*h,
+                    0.35 + rnd.random()**2.2 * 1.5))
+    d_max = link_dist*math.hypot(w, h)
+    c.saveState(); c.setLineCap(1)
+    for i, (x1, y1, k1) in enumerate(pts):
+        for (x2, y2, k2) in pts[i+1:]:
+            d = math.hypot(x2-x1, y2-y1)
+            if d > d_max: continue
+            f = 1 - d/d_max
+            big = (k1 > 1.1 and k2 > 1.1)
+            c.setStrokeColorRGB(*[v/255 for v in (accent if big else base)],
+                                alpha=alpha_link*f*(1.5 if big else 1))
+            c.setLineWidth(0.25 + f*0.55)
+            c.line(x1, y1, x2, y2)
+    c.restoreState()
+    nodes(c, pts, accent, r=1.1, alpha=alpha_node)

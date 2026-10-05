@@ -13,7 +13,7 @@
 import os, sys
 sys.path.insert(0, 'scripts')
 from render import Page, preview
-from graphics import gradient, tower, wire, grid
+from graphics import gradient, tower, wire, grid, flow_field, nodes
 from ds import *
 
 OUT = 'presentation-project/06_sample-slides'
@@ -28,18 +28,16 @@ def build():
     # — фон: градиент ночного неба, вектор —
     gradient(c, -B, -B, PAGE_W+2*B, PAGE_H+2*B, (26, 32, 74), (58, 42, 86))
 
-    # — технический модуль, еле заметный —
-    grid(c, -B, -B, PAGE_W+2*B, PAGE_H+2*B, 14*mm, C.LINE_D, 0.18, 0.16)
+    # — поток энергии: генеративное поле линий, вектор —
+    flow_field(c, -B, -B, PAGE_W+2*B, PAGE_H+2*B,
+               n=560, seed=11, base=(132, 146, 205), accent=C.ORANGE,
+               accent_ratio=0.075, scale=0.85,
+               weight=(0.20, 0.70), alpha=(0.05, 0.40))
 
-    # — провода уходят за обрез, задавая диагональ —
-    for k, (y0, y1, sg, a) in enumerate([
-            (236*mm, 214*mm, 12*mm, 0.50), (228*mm, 206*mm, 14*mm, 0.38),
-            (196*mm, 178*mm, 10*mm, 0.30), (188*mm, 170*mm, 11*mm, 0.22)]):
-        wire(c, -B, y0, PAGE_W+B, y1, sg, C.MUTED_D, 0.7, a)
-
-    # — опора: главный графический объект, уходит за правый обрез —
-    tower(c, PAGE_W*0.70, 92*mm, 150*mm, C.MUTED_D, weight=1.05, alpha=0.60)
-    tower(c, PAGE_W*0.14,  118*mm, 78*mm, C.MUTED_D, weight=0.7,  alpha=0.26)
+    # — узлы сети: точки с ореолом, как подстанции на схеме —
+    nodes(c, [(PAGE_W*0.72, 232*mm, 1.6), (PAGE_W*0.26, 205*mm, 1.0),
+              (PAGE_W*0.52, 251*mm, 0.8), (PAGE_W*0.88, 192*mm, 1.2),
+              (PAGE_W*0.14, 246*mm, 0.7)], C.ORANGE, r=1.4)
 
     # — низ полосы притемнён под текст: вектор, не растр —
     c.saveState()
