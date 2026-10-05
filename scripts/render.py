@@ -28,9 +28,14 @@ def fonts():
 
 class Page:
     """Полоса с вылетом. Начало координат — левый нижний угол ОБРЕЗА."""
-    def __init__(self, path, left_page=False):
+    def __init__(self, path=None, left_page=False, c=None):
+        """c — готовая канва: так же рисуется полоса внутри разворота,
+        компоненты при этом одни и те же."""
         fonts()
         self.path, self.left = path, left_page
+        if c is not None:
+            self.c = c
+            return
         self.c = canvas.Canvas(path, pagesize=(PAGE_W+2*BLEED, PAGE_H+2*BLEED))
         self.c.translate(BLEED, BLEED)
 
@@ -59,7 +64,15 @@ class Page:
     # — текст —
     def text(self, s, x, y, font, size, color, track=0, align='l'):
         """Строка с трекингом. ReportLab задаёт межбуквенный интервал только
-        через текстовый объект, у канвы такого метода нет."""
+        через текстовый объект, у канвы такого метода нет.
+
+        Межбуквенный интервал Tc — параметр ТЕКСТОВОГО СОСТОЯНИЯ PDF: он
+        переживает BT/ET и действует до следующей установки. Поэтому он
+        выставляется всегда, в том числе нулевой. Иначе трекинг капители
+        перетекает в набор, идущий ниже: строки выходят шире измеренных,
+        переносы считаются по одной ширине, а печатаются по другой — ровно
+        так текст и уезжал за наборную полосу.
+        """
         sp = track*size/1000.0
         w = pdfmetrics.stringWidth(s, font, size) + sp*max(len(s)-1, 0)
         if   align == 'r': x -= w
@@ -67,7 +80,7 @@ class Page:
         self.c.setFillColorRGB(*rgb(color))
         t = self.c.beginText(x, y)
         t.setFont(font, size)
-        if sp: t.setCharSpace(sp)
+        t.setCharSpace(sp)
         t.textOut(s)
         self.c.drawText(t)
         return w
@@ -98,14 +111,18 @@ class Page:
 
     def save(self):
         self.c.showPage(); self.c.save()
-        with pikepdf.open(self.path, allow_overwriting_input=True) as pdf:
-            for p in pdf.pages:
-                mb = [float(v) for v in p.MediaBox]
-                p.BleedBox = pikepdf.Array(mb); p.CropBox = pikepdf.Array(mb)
-                p.TrimBox = pikepdf.Array([mb[0]+BLEED, mb[1]+BLEED,
-                                           mb[2]-BLEED, mb[3]-BLEED])
-            pdf.save(self.path)
-        return self.path
+        return boxes(self.path)
+
+def boxes(path):
+    """Проставить TrimBox/BleedBox/CropBox: обрез внутри, вылет снаружи."""
+    with pikepdf.open(path, allow_overwriting_input=True) as pdf:
+        for p in pdf.pages:
+            mb = [float(v) for v in p.MediaBox]
+            p.BleedBox = pikepdf.Array(mb); p.CropBox = pikepdf.Array(mb)
+            p.TrimBox = pikepdf.Array([mb[0]+BLEED, mb[1]+BLEED,
+                                       mb[2]-BLEED, mb[3]-BLEED])
+        pdf.save(path)
+    return path
 
 def preview(pdf, png, width=1400):
     import pymupdf, numpy as np, cv2

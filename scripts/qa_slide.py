@@ -13,8 +13,14 @@ from reportlab.lib.units import mm
 
 MM = lambda v: v/72*25.4
 
-def check(path, margin_outer=16, margin_inner=22, min_pt=6.0, edge_mm=8.0):
+def check(path, margin_outer=16, margin_inner=22, min_pt=6.0, edge_mm=8.0,
+          left_page=None):
+    """left_page — чётная полоса разворота: у неё крупное поле справа, у
+    нечётной слева. Без этого проверка меры набора врёт на 6 мм."""
     d = pymupdf.open(path); p = d[0]; t = p.trimbox
+    if left_page is None:
+        left_page = path.endswith('_L.pdf')
+    m_right = margin_inner if left_page else margin_outer
     spans = [(s, l) for b in p.get_text('dict')['blocks']
              for l in b.get('lines', []) for s in l['spans']]
     issues = []
@@ -26,7 +32,7 @@ def check(path, margin_outer=16, margin_inner=22, min_pt=6.0, edge_mm=8.0):
         d_edge = min(r[0]-t.x0, t.x1-r[2], r[1]-t.y0, t.y1-r[3])
         if MM(d_edge) < edge_mm:
             issues.append(f"{MM(d_edge):.1f} мм до обреза: {s['text'][:34]!r}")
-        if MM(r[2] - t.x0) > MM(t.x1 - t.x0) - margin_outer + 1.0:
+        if MM(r[2] - t.x0) > MM(t.x1 - t.x0) - m_right + 1.0:
             issues.append(f"выходит за наборную полосу: {s['text'][:34]!r}")
 
     # Наложение строк. Прямоугольник строки у ReportLab включает запас на
