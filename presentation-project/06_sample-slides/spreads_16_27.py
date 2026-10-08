@@ -7,17 +7,22 @@
       полосы зеркальны друг другу, и разворот читается сравнением;
   20–21, 22–23, 24–25 — отраслевой объект: слева разбор, справа кадры.
 
+Кадр держит полосу: фотография идёт навылет, как в утверждённом каталоге.
+Цена размера — разрешение: исходники сведены в растр 1240 px по ширине, и
+во всю полосу это около 150 dpi. Фактические цифры по каждому кадру печатает
+scripts/qa_images.py; поднять их может только оригинал съёмки.
+
 Текст и цифры — из утверждённого каталога. Подписи, которые в прежней
 вёрстке были впечатаны в фотографию («Участок а/д. М11», «Прокол под а/д М4
 "Дон"», «Ввод в эксплуатацию 2023 г.»), набраны живым текстом: в растре они
-печатались в 150 dpi вместе с кадром.
+печатались вместе с кадром и в новой вёрстке срезаны.
 """
 import os, sys
 sys.path.insert(0, 'scripts')
 from spread import build, L, R
 from render import preview
-from layouts import (base, topic, bullets, body, stack, pair, ghost_num,
-                     outer_x, PW)
+from layouts import (base, topic, bullets, body, full_photo, photo_rows,
+                     photo_grid, band_height, PH)
 from ds import *
 
 OUT = 'presentation-project/06_sample-slides'
@@ -27,16 +32,24 @@ OUT = 'presentation-project/06_sample-slides'
 def spread_16_17(s):
     t = base(s, 16, 'Архитектурное освещение', 'Наружное электроосвещение',
              dark=True, seed=16)
-    for side, num, title, items, photo, cap in (
-        (L, '05', ['ДЕКОРАТИВНОЕ', 'И АРХИТЕКТУРНОЕ', 'ОСВЕЩЕНИЕ'],
-         ['Проектирование', 'Монтажные работы'], 'p16_building', None),
-        (R, '08', ['НАРУЖНОЕ', 'ЭЛЕКТРООСВЕЩЕНИЕ'],
-         ['Проектирование', 'Строительство'], 'p17_road_night',
-         'Участок а/д. М11')):
+    pairs = ((L, 'p16_building'), (R, 'p17_road_night'))
+    h = band_height(s, pairs)
+    for (side, photo), num, title, items, cap in zip(
+            pairs,
+            ('05', '08'),
+            (['ДЕКОРАТИВНОЕ', 'И АРХИТЕКТУРНОЕ', 'ОСВЕЩЕНИЕ'],
+             ['НАРУЖНОЕ', 'ЭЛЕКТРООСВЕЩЕНИЕ']),
+            (['Проектирование', 'Монтажные работы'],
+             ['Проектирование', 'Строительство']),
+            (None, 'Участок а/д. М11')):
         yb = topic(s, side, f'НАПРАВЛЕНИЕ {num} ИЗ 10', title, t)
         bullets(s, side, items, min(188*mm, yb - 22*mm), t, step=24*mm)
-        stack(s, side, [(photo, 'c')], 106*mm, MARGIN_BOTTOM,
-              caps=[cap], t=t)
+        inner, _ = edges(side)
+        full_photo(s, side, photo, -BLEED, -BLEED + h,
+                   **({'x1': inner} if side == L else {'x0': inner}))
+        if cap:
+            s.text(cap, *px(side, 0, 12)[:1], -BLEED + h + 6*mm,
+                   T.FONT_BOOK, T.SMALL, t.muted)
 
 
 # ══════════════════════════ 18–19 · ПУСКОНАЛАДКА | ГНБ ══════════════════
@@ -49,15 +62,17 @@ def spread_18_19(s):
                'систем, проверка на соответствие параметрам проектной '
                'документации и технологическим требованиям на этапе ввода '
                'систем в эксплуатацию', yb - 24*mm, t)
-    stack(s, L, [('p18_panel', 'c')], 106*mm, MARGIN_BOTTOM, t=t)
+    h = band_height(s, ((L, 'p18_panel'), (R, 'p19_hdd_pipes')))
+    full_photo(s, L, 'p18_panel', -BLEED, -BLEED + h, x1=edges(L)[0])
 
     yb = topic(s, R, 'НАПРАВЛЕНИЕ 10 ИЗ 10',
                ['ГНБ (ГОРИЗОНТАЛЬНО', '-НАПРАВЛЕННОЕ БУРЕНИЕ)'], t)
     bullets(s, R, ['Собственные установки', 'Квалифицированный инженерный состав',
                    'Оптимизация сроков', 'Многолетний опыт строительства'],
             min(188*mm, yb - 22*mm), t, step=20*mm)
-    stack(s, R, [('p19_hdd_pipes', 'c')], 106*mm, MARGIN_BOTTOM,
-          caps=['Прокол под а/д М4 «Дон»'], t=t)
+    full_photo(s, R, 'p19_hdd_pipes', -BLEED, -BLEED + h, x0=edges(R)[0])
+    s.text('Прокол под а/д М4 «Дон»', *px(R, 0, 12)[:1], -BLEED + h + 6*mm,
+           T.FONT_BOOK, T.SMALL, t.muted)
 
 
 # ═══════════════════════════════ 20–21 · МЕТРОСТРОЙ ═════════════════════
@@ -75,8 +90,7 @@ def spread_20_21(s):
            track=T.TRACK_CAPS)
     s.lines(['АО «Метрострой', 'Северной Столицы»'], x, y - 40*mm,
             T.FONT_MED, T.H3, t.ink, T.LEAD_H2)
-    stack(s, R, [('p21_ukrm', 'c'), ('p21_foundations', 'c')],
-          244*mm, MARGIN_BOTTOM)
+    photo_rows(s, R, ['p21_ukrm', 'p21_foundations'], PAGE_H + BLEED, -BLEED)
 
 
 # ══════════════════════════════ 22–23 · ОЭЗ «ЭММАУС» ════════════════════
@@ -94,8 +108,7 @@ def spread_22_23(s):
              y - 22*mm, t)
     body(s, L, 'Мы принимаем активное участие в работах по строительству '
                'автомобильных дорог и инженерных коммуникаций.', y - 16*mm, t)
-    stack(s, R, [('p23_pipe_trench', 'c'), ('p23_road_roller', 'c')],
-          244*mm, MARGIN_BOTTOM)
+    photo_rows(s, R, ['p23_pipe_trench', 'p23_road_roller'], PAGE_H + BLEED, -BLEED)
 
 
 # ═════════════════════════════ 24–25 · ЗАПАДНЫЙ МОСТ ════════════════════
@@ -107,8 +120,8 @@ def spread_24_25(s):
     y = body(s, L, '(Западный Мост)', yb - 14*mm, t, size=T.H3, col=t.muted)
     bullets(s, L, ['Переустройство воздушных линий электропередач '
                    'напряжением 0,4-110кВ'], y - 24*mm, t, step=22*mm)
-    stack(s, L, [('p24_worker', 'c')], 150*mm, MARGIN_BOTTOM)
-    stack(s, R, [('p25_truss', 'c'), ('p25_pole', 'c')], 244*mm, MARGIN_BOTTOM)
+    full_photo(s, L, 'p24_worker', -BLEED, 128*mm, x1=edges(L)[0])
+    photo_rows(s, R, ['p25_truss', 'p25_pole'], PAGE_H + BLEED, -BLEED)
 
 
 # ══════════════════════ 26–27 · ГРАЖДАНСКОЕ | ПРОМЫШЛЕННОЕ ══════════════
@@ -119,25 +132,30 @@ def spread_26_27(s):
     yb = topic(s, L, 'ЖИЛЫЕ ДОМА', ['ГРАЖДАНСКОЕ', 'СТРОИТЕЛЬСТВО'], t)
     body(s, L, 'Строительство кирпичных многоэтажных жилых домов '
                'с индивидуальным отоплением комфорт-класса', yb - 24*mm, t)
+
     # Четыре ракурса домов идут сеткой 2×2 под общим кадром двора. Высота
     # ряда — предел более «низкого» из двух кадров: в ряду стоят кадры
     # близких пропорций, иначе обрезка «по заполнению» съела бы половину
     # ширины и уронила разрешение вдвое.
-    sl = stack(s, L, [('p26_yard', 'c'), (None, 43.3*mm), (None, 25.7*mm)],
-               168*mm, MARGIN_BOTTOM + 6*mm,
-               caps=['Ввод в эксплуатацию 2023 г.', None,
-                     'Ввод в эксплуатацию 2025 г.'], t=t)
-    pair(s, L, 'p26_house1', 'p26_house3', *sl[1])
-    pair(s, L, 'p26_house4', 'p26_house2', *sl[2])
+    # Двор — полосой навылет, четыре ракурса домов — сеткой 2×2 под ним.
+    # Подписи стоят НАД кадрами, на фоне: поверх фотографии они читались бы
+    # только там, где кадр случайно тёмный.
+    inner_l, _ = edges(L)
+    s.text('Ввод в эксплуатацию 2023 г.', *px(L, 0, 12)[:1], 182*mm,
+           T.FONT_BOOK, T.SMALL, t.muted)
+    full_photo(s, L, 'p26_yard', 124*mm, 176*mm, x1=inner_l)
+    s.text('Ввод в эксплуатацию 2025 г.', *px(L, 0, 12)[:1], 112*mm,
+           T.FONT_BOOK, T.SMALL, t.muted)
+    photo_grid(s, L, [('p26_house1', 'p26_house3'),
+                      ('p26_house4', 'p26_house2')], 106*mm, -BLEED, x1=inner_l)
 
     yb = topic(s, R, 'КОММЕРЧЕСКАЯ НЕДВИЖИМОСТЬ',
                ['ПРОМЫШЛЕННОЕ', 'СТРОИТЕЛЬСТВО'], t)
-    y = body(s, R, 'Строительство коммерческой недвижимости. Класс зданий В/В+',
-             yb - 24*mm, t)
-    stack(s, R, [('p27_aerial', 'c'), ('p27_tower', 'c')], y - 26*mm,
-          MARGIN_BOTTOM + 6*mm,
-          caps=[None, '«Аструм-Сити» — 6-е по высоте здание в Московской области'],
-          t=t)
+    body(s, R, 'Строительство коммерческой недвижимости. Класс зданий В/В+',
+         yb - 24*mm, t)
+    s.text('«Аструм-Сити» — 6-е по высоте здание в Московской области',
+           *px(R, 0, 12)[:1], 182*mm, T.FONT_BOOK, T.SMALL, t.muted)
+    photo_rows(s, R, ['p27_aerial', 'p27_tower'], 176*mm, -BLEED)
 
 
 SPREADS = [('spread_16_17', spread_16_17, 16), ('spread_18_19', spread_18_19, 18),

@@ -36,8 +36,22 @@ class Spread(Slide):
     полосы; x растёт через сгиб на правую. Компоненты набора наследуются
     от Slide: они работают от переданных координат и о сгибе не знают."""
 
-    def __init__(self, c):
+    def __init__(self, c, side=None):
+        """side — какая полоса сейчас рисуется: 'L', 'R' или None для
+        совмещённого разворота. От этого зависит только вылет в корешок."""
         super().__init__(c=c)
+        self.side = side
+
+    def bleed_box(self, side):
+        """(x0, x1) полосы вместе с вылетами — для кадров и плашек навылет.
+
+        Наружу вылет есть всегда. В корешок он добавляется ТОЛЬКО в файле
+        самой полосы: на совмещённом развороте он налез бы на соседнюю
+        полосу, а в печати этот край всё равно обрезается.
+        """
+        b = BLEED
+        gut = b if self.side == side else 0
+        return (-b, PAGE_W + gut) if side == L else (FOLD - gut, SPREAD_W + b)
 
     # ── фоны ─────────────────────────────────────────────────────────────
     def fill(self, color):
@@ -189,7 +203,7 @@ def build(draw, out_dir, name, pages=True, spread=True):
             c.translate(B if side == L else B - PAGE_W, B)
             x0 = -B if side == L else PAGE_W - B
             _clip(c, x0, x0 + PAGE_W + 2*B)
-            draw(Spread(c))
+            draw(Spread(c, side))
             c.showPage(); c.save(); boxes(path); made.append(path)
 
     if spread:

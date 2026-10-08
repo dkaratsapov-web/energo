@@ -135,6 +135,90 @@ def stack(s, side, photos, top, bottom, w=PW, gap_max=14*mm, caps=None, t=None):
     return out
 
 
+def aspect(path):
+    a = cv2.imread(f'{PH}/{path}.png')
+    return a.shape[1]/a.shape[0]
+
+
+def full_photo(s, side, path, y0, y1, anchor='c', x0=None, x1=None):
+    """Кадр во всю полосу навылет. Так кадр и держит полосу — ровно как в
+    утверждённом каталоге; столбец мелких кадров объект не показывает."""
+    bx0, bx1 = s.bleed_box(side)
+    x0 = bx0 if x0 is None else x0
+    x1 = bx1 if x1 is None else x1
+    return s.photo(f'{PH}/{path}.png', x0, y0, x1 - x0, y1 - y0, anchor=anchor)
+
+
+def _fit_heights(paths, w, avail):
+    """Высоты кадров одной ширины: каждая — по СОБСТВЕННОЙ пропорции кадра.
+
+    Правило одно: рамка никогда не бывает уже кадра по пропорции. Обрезка
+    «по заполнению» в этом случае снимает верх и низ, а вся ширина
+    исходника идёт в дело — то есть разрешение получается максимально
+    возможным. Если сделать рамку выше кадра, обрезка начнёт срезать бока,
+    и разрешение падает вдвое ни за что.
+    """
+    nat = [w/aspect(p) for p in paths]
+    tot = sum(nat)
+    if tot >= avail:                      # тесно — ужимаем по высоте
+        k = avail/tot
+        return [h*k for h in nat], 0.0
+    gap = (avail - tot)/max(len(paths) - 1, 1)
+    return nat, gap
+
+
+def photo_rows(s, side, photos, top, bottom, anchor='c', x0=None, x1=None):
+    """Кадры навылет один над другим, от верхней границы до нижней."""
+    bx0, bx1 = s.bleed_box(side)
+    x0 = bx0 if x0 is None else x0
+    x1 = bx1 if x1 is None else x1
+    hs, gap = _fit_heights(photos, x1 - x0, top - bottom)
+    y = top
+    for path, h in zip(photos, hs):
+        y -= h
+        s.photo(f'{PH}/{path}.png', x0, y, x1 - x0, h, anchor=anchor)
+        y -= gap
+
+
+def band_height(s, pairs, to_inner=True):
+    """Общая высота нижних кадров-полос на обеих страницах разворота.
+
+    Берётся по тому кадру, который «ниже» по пропорции: тогда оба кадра
+    используют ВСЮ ширину исходника, и разрешение у обоих максимальное.
+    Если взять высоту по более вытянутому кадру, обрезка у второго пойдёт
+    по бокам и разрешение упадёт на четверть ни за что.
+    """
+    out = []
+    for side, path in pairs:
+        x0, x1 = s.bleed_box(side)
+        if to_inner:                       # полоса доходит до корешкового поля
+            inner, _ = edges(side)
+            x0, x1 = (x0, inner) if side == L else (inner, x1)
+        out.append((x1 - x0)/aspect(path))
+    return min(out)
+
+
+def photo_grid(s, side, rows, top, bottom, gap=3*mm, x0=None, x1=None):
+    """Сетка кадров: rows — ряды по два кадра. Высота ряда берётся по тому
+    кадру, который ниже: так оба сохраняют полную ширину исходника."""
+    bx0, bx1 = s.bleed_box(side)
+    x0 = bx0 if x0 is None else x0
+    x1 = bx1 if x1 is None else x1
+    w = (x1 - x0 - gap)/2
+    hs = [min(w/aspect(a), w/aspect(b)) for a, b in rows]
+    tot = sum(hs)
+    avail = top - bottom - gap*(len(rows) - 1)
+    if tot > avail:
+        hs = [h*avail/tot for h in hs]
+    y = top
+    for (a, b), h in zip(rows, hs):
+        y -= h
+        s.photo(f'{PH}/{a}.png', x0,           y, w, h)
+        s.photo(f'{PH}/{b}.png', x0 + w + gap, y, w, h)
+        y -= gap
+    return y
+
+
 def pair(s, side, a, b, y, h, w=PW, gap=4*mm):
     """Два узких кадра в одном слоте столбца."""
     x  = outer_x(side, w)
