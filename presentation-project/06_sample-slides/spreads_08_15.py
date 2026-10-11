@@ -35,20 +35,30 @@ OUT = 'presentation-project/06_sample-slides'
 PH  = 'presentation-project/05_assets/photos'
 
 def service(s, n, num, section_l, section_r, title, items, photos,
-            dark=True, item_size=12, step=20*mm, lead=1.40):
+            dark=True, item_size=12, step=20*mm, lead=1.40,
+            ground='фирменный'):
     """Разворот серии «направление работ»."""
     # Фон, шапка и колонцифры — общая схема каталога (scripts/layouts.py):
     # одна реализация на все развороты, иначе они расходятся по мелочам.
-    t = base(s, n, section_l, section_r, dark=dark, seed=n)
+    t = base(s, n, section_l, section_r, dark=dark, seed=n, ground=ground)
     line, muted, ghost = t.line, t.muted, t.ghost
     # ── левая полоса: направление и перечень работ ───────────────────────
     xl, wl = px(L, 0, 12)
     s.eyebrow(L, f'НАПРАВЛЕНИЕ {num} ИЗ 10')
-    yb = s.title(L, title, dark=dark)
+    # Потолок 64 pt: на полосе направления под заголовком ещё перечень
+    # и кадр, и 84 pt съедают строку перечня.
+    yb = s.title(L, title, dark=dark, size=min(
+        s.fit_size(title, px(L, 0, 12)[1], T.FONT_BLACK, 64, track=-6), 64))
 
-    # Перечень идёт от общей для серии горизонтали, но у длинного названия
-    # (четыре строки на 14–15) отступает от его последней строки.
-    y = min(200*mm, yb - 20*mm)
+    # Перечень прижат к кадру, а не к заголовку: тогда пустота собирается
+    # в одном месте — под названием, где читается как пауза. Раньше воздух
+    # лежал между перечнем и кадром, посередине полосы, и выглядел
+    # недовёрсткой. Шаг растягивается, пока перечень не упрётся в заголовок,
+    # и дальше не растёт — иначе перечень из двух пунктов разъезжается.
+    RB = 112*mm                                   # закрывающая линейка
+    n_it = len(items)
+    step = min(((yb - 22*mm) - (RB - 11*mm))/n_it, 34*mm)
+    y = RB - 11*mm + n_it*step
     for i, it in enumerate(items, 1):
         s.rule(xl, y + 11*mm, wl, line, 0.5)
         s.numbered(i, xl, y, it, dark=dark, size=item_size, num_w=13*mm,
@@ -84,7 +94,7 @@ def spread_08_09(s):
             ['Внутренняя электрическая сеть', 'Пожарная сигнализация',
              'Охранная сигнализация', 'Локальная сеть', 'Диспетчеризация'],
             [('p09_office_desks', 'c'), ('p09_office_floor', 'c'),
-             ('p08_office_tray', 'c')])
+             ('p08_office_tray', 'c')], ground='фирменный')
 
 
 def spread_10_11(s):
@@ -105,7 +115,8 @@ def spread_12_13(s):
              'Участие в строительстве высокоскоростной железнодорожной '
              'магистрали в качестве генподрядчика.'],
             [('p13_workers', 'c'), ('p13_crane', 'c'),
-             ('p12_ohl_winter', 'c')], item_size=13, step=46*mm, lead=1.45)
+             ('p12_ohl_winter', 'c')], item_size=13, step=46*mm, lead=1.45,
+            ground='ночь')
 
 
 def spread_14_15(s):

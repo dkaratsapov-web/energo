@@ -107,10 +107,14 @@ class Spread(Slide):
         self.c.restoreState()
 
     # ── служебные элементы ───────────────────────────────────────────────
-    def heads(self, section_l, section_r, dark=True, rule=True):
+    def heads(self, section_l, section_r, dark=True, rule=True, sag=4*mm,
+              bg=None, col=None, wire=None):
         """Шапка разворота: название раздела у внешнего края каждой полосы и
-        одна линейка, идущая через сгиб. Линейка и есть главная связка:
-        две полосы висят на общей горизонтали."""
+        ПРОВОД, идущий через сгиб из обреза в обрез.
+
+        Провод — фирменный приём каталога и главная связка разворота: две
+        полосы висят на одной линии, и эта линия — то, что компания строит.
+        Провес задаётся полосой и меняется от разворота к развороту."""
         muted = C.MUTED_D if dark else C.MUTED_L
         line  = C.LINE_D  if dark else C.LINE_L
         y = PAGE_H - MARGIN_TOP
@@ -122,14 +126,16 @@ class Spread(Slide):
             self.text(sec.upper(), ox, y, T.FONT_MED, T.MICRO, muted,
                       track=T.TRACK_CAPS, align='l' if side == L else 'r')
         if rule:
-            x, w = across()
-            self.rule(x, y - 7, w, line, 0.5)
+            from graphics import conductor
+            conductor(self.c, -BLEED, SPREAD_W + BLEED, y - 7, sag,
+                      wire or C.ORANGE,
+                      weight=0.7, nodes_r=1.1, bg=bg)
         return y - 7
 
-    def folios(self, n_left, dark=True):
+    def folios(self, n_left, dark=True, col=None):
         """Колонцифры во внешних нижних углах — по-книжному. На левой полосе
         чётный номер у левого обреза, на правой нечётный у правого."""
-        muted = C.MUTED_D if dark else C.MUTED_L
+        muted = col or (C.MUTED_D if dark else C.MUTED_L)
         y = MARGIN_BOTTOM - 8*mm
         for side, num in ((L, n_left), (R, n_left + 1)):
             _, ox = edges(side)
@@ -143,7 +149,10 @@ class Spread(Slide):
         y = Y_TITLE if y is None else y
         x, w = px(side, 0, span)
         f = font or T.FONT_BLACK
-        s = size or self.fit_size(rows, w, f, T.H1, track=track)
+        # Кегль подбирается под длину названия: короткое держит полосу
+        # крупно, длинное ужимается. Ниже H1_MIN заголовок перестаёт быть
+        # заголовком, поэтому там — пол.
+        s = size or max(self.fit_size(rows, w, f, T.H1, track=track), T.H1_MIN)
         col = C.WHITE if dark else C.INK
         self.lines(rows, x, y, f, s, col, T.LEAD_H1, track=track)
         return y - (len(rows) - 1)*s*T.LEAD_H1
@@ -152,8 +161,8 @@ class Spread(Slide):
         """Надзаголовок капителью — ступень между колонтитулом и заголовком."""
         y = Y_EYEBROW if y is None else y
         x, _ = px(side, 0, 12)
-        self.text(s, x, y, T.FONT_MED, T.MICRO,
-                  col or (C.ORANGE if dark else C.ORANGE), track=T.TRACK_CAPS)
+        self.text(s, x, y, T.FONT_MED, T.MICRO, col or C.ORANGE,
+                  track=T.TRACK_CAPS)
 
     def label(self, s, x, y, font, size, color, track=0):
         """Подпись, центрированная по x, но не выходящая за наборную полосу

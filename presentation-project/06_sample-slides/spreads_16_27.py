@@ -21,8 +21,8 @@ import os, sys
 sys.path.insert(0, 'scripts')
 from spread import build, L, R
 from render import preview
-from layouts import (base, topic, bullets, body, full_photo, photo_rows,
-                     photo_grid, band_height, PH)
+from layouts import (base, topic, bullets, bullets_to, body, lead,
+                     full_photo, photo_rows, photo_grid, band_height, PH)
 from ds import *
 
 OUT = 'presentation-project/06_sample-slides'
@@ -43,7 +43,7 @@ def spread_16_17(s):
              ['Проектирование', 'Строительство']),
             (None, 'Участок а/д. М11')):
         yb = topic(s, side, f'НАПРАВЛЕНИЕ {num} ИЗ 10', title, t)
-        bullets(s, side, items, min(188*mm, yb - 22*mm), t, step=24*mm)
+        bullets_to(s, side, items, yb - 22*mm, -BLEED + h + 20*mm, t)
         inner, _ = edges(side)
         full_photo(s, side, photo, -BLEED, -BLEED + h,
                    **({'x1': inner} if side == L else {'x0': inner}))
@@ -57,19 +57,20 @@ def spread_18_19(s):
     t = base(s, 18, 'Пусконаладочные работы', 'Горизонтальное бурение',
              dark=False, seed=18)
 
-    yb = topic(s, L, 'НАПРАВЛЕНИЕ 09 ИЗ 10', ['ПУСКОНАЛАДОЧНЫЕ', 'РАБОТЫ'], t)
-    body(s, L, 'Комплексы работ, выполняемые с целью наладки работоспособности '
-               'систем, проверка на соответствие параметрам проектной '
-               'документации и технологическим требованиям на этапе ввода '
-               'систем в эксплуатацию', yb - 24*mm, t)
     h = band_height(s, ((L, 'p18_panel'), (R, 'p19_hdd_pipes')))
+    yb = topic(s, L, 'НАПРАВЛЕНИЕ 09 ИЗ 10', ['ПУСКОНАЛАДОЧНЫЕ', 'РАБОТЫ'], t)
+    lead(s, L, 'Комплексы работ, выполняемые с целью наладки '
+               'работоспособности систем, проверка на соответствие параметрам '
+               'проектной документации и технологическим требованиям на этапе '
+               'ввода систем в эксплуатацию', yb - 26*mm, t)
     full_photo(s, L, 'p18_panel', -BLEED, -BLEED + h, x1=edges(L)[0])
 
     yb = topic(s, R, 'НАПРАВЛЕНИЕ 10 ИЗ 10',
                ['ГНБ (ГОРИЗОНТАЛЬНО', '-НАПРАВЛЕННОЕ БУРЕНИЕ)'], t)
-    bullets(s, R, ['Собственные установки', 'Квалифицированный инженерный состав',
-                   'Оптимизация сроков', 'Многолетний опыт строительства'],
-            min(188*mm, yb - 22*mm), t, step=20*mm)
+    bullets_to(s, R, ['Собственные установки',
+                      'Квалифицированный инженерный состав',
+                      'Оптимизация сроков', 'Многолетний опыт строительства'],
+               yb - 22*mm, -BLEED + h + 20*mm, t)
     full_photo(s, R, 'p19_hdd_pipes', -BLEED, -BLEED + h, x0=edges(R)[0])
     s.text('Прокол под а/д М4 «Дон»', *px(R, 0, 12)[:1], -BLEED + h + 6*mm,
            T.FONT_BOOK, T.SMALL, t.muted)
@@ -118,8 +119,8 @@ def spread_24_25(s):
                ['СТРОИТЕЛЬСТВО', 'МОСТОВОГО ПЕРЕХОДА', 'ЧЕРЕЗ РЕКУ ВОЛГА',
                 'В Г. ТВЕРИ'], t, size=30)
     y = body(s, L, '(Западный Мост)', yb - 14*mm, t, size=T.H3, col=t.muted)
-    bullets(s, L, ['Переустройство воздушных линий электропередач '
-                   'напряжением 0,4-110кВ'], y - 24*mm, t, step=22*mm)
+    bullets_to(s, L, ['Переустройство воздушных линий электропередач '
+                      'напряжением 0,4-110кВ'], y - 24*mm, 146*mm, t)
     full_photo(s, L, 'p24_worker', -BLEED, 128*mm, x1=edges(L)[0])
     photo_rows(s, R, ['p25_truss', 'p25_pole'], PAGE_H + BLEED, -BLEED)
 
@@ -130,8 +131,8 @@ def spread_26_27(s):
              dark=False, seed=26)
 
     yb = topic(s, L, 'ЖИЛЫЕ ДОМА', ['ГРАЖДАНСКОЕ', 'СТРОИТЕЛЬСТВО'], t)
-    body(s, L, 'Строительство кирпичных многоэтажных жилых домов '
-               'с индивидуальным отоплением комфорт-класса', yb - 24*mm, t)
+    yb = body(s, L, 'Строительство кирпичных многоэтажных жилых домов '
+                    'с индивидуальным отоплением комфорт-класса', yb - 24*mm, t)
 
     # Четыре ракурса домов идут сеткой 2×2 под общим кадром двора. Высота
     # ряда — предел более «низкого» из двух кадров: в ряду стоят кадры
@@ -141,21 +142,22 @@ def spread_26_27(s):
     # Подписи стоят НАД кадрами, на фоне: поверх фотографии они читались бы
     # только там, где кадр случайно тёмный.
     inner_l, _ = edges(L)
-    s.text('Ввод в эксплуатацию 2023 г.', *px(L, 0, 12)[:1], 182*mm,
+    s.text('Ввод в эксплуатацию 2023 г.', *px(L, 0, 12)[:1], yb - 14*mm,
            T.FONT_BOOK, T.SMALL, t.muted)
-    full_photo(s, L, 'p26_yard', 124*mm, 176*mm, x1=inner_l)
-    s.text('Ввод в эксплуатацию 2025 г.', *px(L, 0, 12)[:1], 112*mm,
+    full_photo(s, L, 'p26_yard', yb - 72*mm, yb - 20*mm, x1=inner_l)
+    s.text('Ввод в эксплуатацию 2025 г.', *px(L, 0, 12)[:1], yb - 84*mm,
            T.FONT_BOOK, T.SMALL, t.muted)
     photo_grid(s, L, [('p26_house1', 'p26_house3'),
-                      ('p26_house4', 'p26_house2')], 106*mm, -BLEED, x1=inner_l)
+                      ('p26_house4', 'p26_house2')], yb - 90*mm, -BLEED,
+               x1=inner_l)
 
     yb = topic(s, R, 'КОММЕРЧЕСКАЯ НЕДВИЖИМОСТЬ',
                ['ПРОМЫШЛЕННОЕ', 'СТРОИТЕЛЬСТВО'], t)
-    body(s, R, 'Строительство коммерческой недвижимости. Класс зданий В/В+',
-         yb - 24*mm, t)
+    yb = body(s, R, 'Строительство коммерческой недвижимости. '
+                    'Класс зданий В/В+', yb - 24*mm, t)
     s.text('«Аструм-Сити» — 6-е по высоте здание в Московской области',
-           *px(R, 0, 12)[:1], 182*mm, T.FONT_BOOK, T.SMALL, t.muted)
-    photo_rows(s, R, ['p27_aerial', 'p27_tower'], 176*mm, -BLEED)
+           *px(R, 0, 12)[:1], yb - 14*mm, T.FONT_BOOK, T.SMALL, t.muted)
+    photo_rows(s, R, ['p27_aerial', 'p27_tower'], yb - 20*mm, -BLEED)
 
 
 SPREADS = [('spread_16_17', spread_16_17, 16), ('spread_18_19', spread_18_19, 18),

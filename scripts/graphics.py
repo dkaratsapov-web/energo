@@ -135,6 +135,29 @@ def wire(c, x0, y0, x1, y1, sag, color, weight=0.7, alpha=1.0, bg=None):
     c.drawPath(p, stroke=1, fill=0)
     c.restoreState()
 
+def conductor(c, x0, x1, y, sag, color, weight=0.7, nodes_r=1.1, bg=None,
+              alpha=1.0, steps=96):
+    """Провод: цепная линия из обреза в обрез с узлами-изоляторами на концах.
+
+    Фирменный приём каталога. Это не украшение — провод и есть то, что
+    компания строит; он идёт через сгиб и даёт развороту ось. Провес меняется
+    от разворота к развороту, поэтому при листании линия «дышит».
+    """
+    col = mix(color, bg.at(y - sag), alpha) if bg is not None else color
+    c.saveState()
+    c.setStrokeColorRGB(*_rgb(col)); c.setLineWidth(weight); c.setLineCap(1)
+    p = c.beginPath(); p.moveTo(x0, y)
+    for i in range(1, steps + 1):
+        t = i/steps
+        p.lineTo(x0 + (x1 - x0)*t, y - sag*math.sin(math.pi*t))
+    c.drawPath(p, stroke=1, fill=0)
+    if nodes_r:
+        c.setFillColorRGB(*_rgb(col))
+        for xx in (x0, x1):
+            c.circle(xx, y, nodes_r, stroke=0, fill=1)
+    c.restoreState()
+
+
 def grid(c, x, y, w, h, step, color, weight=0.2, alpha=0.5, bg=None):
     """Технический модуль-сетка для фоновых планов."""
     c.saveState()

@@ -26,38 +26,63 @@ PW = 105*mm
 
 class Tone:
     """Тон разворота: цвета линеек, подписей и «водяного» номера."""
-    def __init__(self, dark):
+    def __init__(self, dark, accent=None):
         self.dark  = dark
         self.line  = C.LINE_D  if dark else C.LINE_L
         self.muted = C.MUTED_D if dark else C.MUTED_L
         self.ink   = C.WHITE   if dark else C.INK
         self.ghost = (56, 58, 104) if dark else (227, 225, 220)
+        if accent:                      # сплошной цветной грунт
+            self.dark  = False
+            self.ink   = C.PURPLE_DEEP
+            self.muted = (126, 88, 67)
+            self.line  = (176, 112, 60)
+            self.ghost = (236, 164, 92)
 
 
 def base(s, n, section_l, section_r, dark=True, seed=3, top_lines=True,
-         chrome=True):
+         chrome=True, ground='фирменный', sag=None, paper=None):
     """Фон, шапка и колонцифры разворота. Возвращает тон.
 
     chrome=False рисует только фон: шапку и колонцифры вызывают сами,
     когда между фоном и ними должна лечь графика во всю полосу.
     """
+    # Провес меняется от разворота к развороту в диапазоне 3…7 мм: при
+    # листании провод «дышит», а не повторяется механически.
+    sag = (3 + (n // 2) % 5)*mm if sag is None else sag
     c, B = s.c, BLEED
+    if ground == 'оранж':
+        # Единственный сплошной цветной разворот каталога. Один такой на
+        # тридцать две полосы: два было бы ярмаркой, ноль — то, что было.
+        bg = Bg(C.ORANGE)
+        s.fill(C.ORANGE)
+        s.fold_shade((150, 86, 24), w=28*mm, alpha=0.16, bg=bg)
+        t = Tone(False, accent=True); t.bg = bg
+        if chrome:
+            s.heads(section_l, section_r, sag=sag, bg=bg, col=t.muted,
+                    wire=C.PURPLE_DEEP)
+            s.folios(n, col=t.muted)
+        return t
     if dark:
-        bg = Bg((28, 32, 74), (48, 39, 82), -B, PAGE_H + 2*B)
-        gradient(c, -B, -B, SPREAD_W + 2*B, PAGE_H + 2*B, (28, 32, 74), (48, 39, 82))
+        top, bot = GROUNDS[ground]
+        bg = Bg(top, bot, -B, PAGE_H + 2*B)
+        gradient(c, -B, -B, SPREAD_W + 2*B, PAGE_H + 2*B, top, bot)
         if top_lines:
             field_lines(c, -B, PAGE_H - 96*mm, SPREAD_W + 2*B, 96*mm + B, rows=16,
                         seed=seed, alpha=(0.03, 0.13), bg=bg)
         s.fold_shade((10, 11, 26), w=30*mm, alpha=0.26, bg=bg)
     else:
-        bg = Bg(C.PAPER)
-        s.fill(C.PAPER)
+        pap = paper or C.PAPER
+        bg = Bg(pap)
+        s.fill(pap)
         grid(c, -B, -B, SPREAD_W + 2*B, PAGE_H + 2*B, 14*mm, C.LINE_L, 0.25, 0.5, bg=bg)
         s.fold_shade((120, 118, 112), w=26*mm, alpha=0.13, bg=bg)
+    t = Tone(dark)
+    t.bg = bg
     if chrome:
-        s.heads(section_l, section_r, dark=dark)
+        s.heads(section_l, section_r, dark=dark, sag=sag, bg=bg)
         s.folios(n, dark=dark)
-    return Tone(dark)
+    return t
 
 
 def outer_x(side, w):
@@ -76,7 +101,7 @@ def ghost_num(s, side, num, t, size=200):
 
 
 def bullets(s, side, items, y, t, size=12, step=20*mm, lead=1.40,
-            numbered=True, rules=True, num_w=13*mm):
+            numbered=True, rules=True, num_w=13*mm, accent=None):
     """Перечень по общей сетке отбивок. Возвращает низ блока."""
     x, w = px(side, 0, 12)
     for i, it in enumerate(items, 1):
@@ -84,9 +109,9 @@ def bullets(s, side, items, y, t, size=12, step=20*mm, lead=1.40,
             s.rule(x, y + 11*mm, w, t.line, 0.5)
         if numbered:
             s.numbered(i, x, y, it, dark=t.dark, size=size, num_w=num_w,
-                       width=w, lead=lead)
+                       width=w, lead=lead, num_col=accent, col=t.ink)
         else:
-            s.c.setFillColorRGB(*rgb(C.ORANGE))
+            s.c.setFillColorRGB(*rgb(accent or C.ORANGE))
             s.c.circle(x - 6*mm, y + 1.4*mm, 1.5*mm, stroke=0, fill=1)
             s.lines(s.wrap(it, w, T.FONT_BOOK, size), x, y, T.FONT_BOOK, size,
                     t.ink, lead)
@@ -94,6 +119,25 @@ def bullets(s, side, items, y, t, size=12, step=20*mm, lead=1.40,
     if rules:
         s.rule(x, y + 11*mm, w, t.line, 0.5)
     return y
+
+
+def lead(s, side, text, y, t, size=None, span=11, col=None):
+    """Лид вторым голосом: 20 pt Regular, не более трёх строк. Набор, где
+    всё одного кегля, читается как справка, а не как издание."""
+    return body(s, side, text, y, t, size=size or T.LEAD, lead=1.28,
+                span=span, col=col or (t.muted if t.dark else C.MUTED_L))
+
+
+def bullets_to(s, side, items, top, bottom, t, size=12, lead=1.40,
+               step_max=34*mm, accent=None):
+    """Перечень, прижатый к НИЖНЕЙ границе: шаг считается из промежутка до
+    неё и дальше не растёт. Так пустота собирается под заголовком, где
+    читается как пауза, а не в середине полосы, где читается как дыра."""
+    n = max(len(items), 1)
+    step = min((top - (bottom - 11*mm))/n, step_max)
+    y = bottom - 11*mm + n*step
+    return bullets(s, side, items, y, t, size=size, step=step, lead=lead,
+                   accent=accent)
 
 
 def body(s, side, text, y, t, size=11, lead=1.52, span=12, col=None):
@@ -163,7 +207,11 @@ def _fit_heights(paths, w, avail):
     if tot >= avail:                      # тесно — ужимаем по высоте
         k = avail/tot
         return [h*k for h in nat], 0.0
-    gap = (avail - tot)/max(len(paths) - 1, 1)
+    # Свободную высоту не раскидываем поровну между кадрами: промежуток в
+    # сорок миллиметров посреди полосы читается как дыра. Промежуток
+    # ограничен 12 мм, остаток уходит наверх, под шапку, где смыкается с
+    # полем соседней полосы.
+    gap = min((avail - tot)/max(len(paths) - 1, 1), 12*mm)
     return nat, gap
 
 
@@ -173,7 +221,8 @@ def photo_rows(s, side, photos, top, bottom, anchor='c', x0=None, x1=None):
     x0 = bx0 if x0 is None else x0
     x1 = bx1 if x1 is None else x1
     hs, gap = _fit_heights(photos, x1 - x0, top - bottom)
-    y = top
+    # столбец прижат к нижней границе: свободное поле собирается сверху
+    y = bottom + sum(hs) + gap*(len(hs) - 1)
     for path, h in zip(photos, hs):
         y -= h
         s.photo(f'{PH}/{path}.png', x0, y, x1 - x0, h, anchor=anchor)

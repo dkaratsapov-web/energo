@@ -23,6 +23,7 @@
 import os, sys
 sys.path.insert(0, 'scripts')
 from spread import Spread, build, L, R
+from layouts import base, lead, bullets, body
 from render import preview
 from graphics import gradient, field_lines, grid, Bg, mix
 from ds import *
@@ -33,34 +34,25 @@ OUT = 'presentation-project/06_sample-slides'
 # ══════════════════════════════════ 2–3 · ФОНД | ЧТО МЫ СТРОИМ ══════════
 def spread_02_03(s):
     c, B = s.c, BLEED
-    bg = Bg((30, 34, 78), (52, 40, 82), -B, PAGE_H + 2*B)
-    gradient(c, -B, -B, SPREAD_W + 2*B, PAGE_H + 2*B, (30, 34, 78), (52, 40, 82))
-    # силовые линии идут сквозь разворот одним полем: рисунок фона не
-    # обрывается на сгибе, и разворот читается одним листом
+    t = base(s, 2, 'Социальная позиция', 'Что мы строим', ground='ночь', sag=5*mm)
     field_lines(c, -B, 118*mm, SPREAD_W + 2*B, PAGE_H - 96*mm, rows=30, seed=4,
-                alpha=(0.04, 0.17), bg=bg)
-    s.fold_shade((10, 11, 26), w=30*mm, alpha=0.26, bg=bg)
-
-    s.heads('Социальная позиция', 'Что мы строим')
-    s.folios(2)
+                alpha=(0.04, 0.17), bg=t.bg)
 
     # ── левая полоса: фонд ───────────────────────────────────────────────
     xl, wl = px(L, 0, 12)
     s.eyebrow(L, 'БЛАГОТВОРИТЕЛЬНЫЙ ФОНД')
     yb = s.title(L, ['«ЭНЕРГИЯ', 'РУССКОГО ДУХА»'])
 
-    s.lines(['Входим в попечительский совет', 'благотворительного фонда'],
-            xl, 206*mm, T.FONT_BOOK, T.H3, C.MUTED_D, T.LEAD_H2)
-    s.text('МИССИИ ФОНДА', xl, 194*mm, T.FONT_SEMI, T.MICRO, C.ORANGE,
+    y = lead(s, L, 'Входим в попечительский совет благотворительного фонда',
+             yb - 26*mm, t)
+    s.text('МИССИИ ФОНДА', xl, y - 18*mm, T.FONT_SEMI, T.MICRO, C.ORANGE,
            track=T.TRACK_CAPS)
 
-    # Сетка линеек общая для обеих полос разворота: при раскрытом каталоге
-    # отбивки миссий слева и групп объектов справа идут одной горизонталью.
-    RULES = (186*mm, 140*mm, 94*mm, 48*mm)
+    # Сетка отбивок общая для обеих полос: при раскрытом каталоге отбивки
+    # миссий слева и групп объектов справа идут одной горизонталью.
+    top = y - 30*mm
+    RULES = [top - i*(top - 48*mm)/3 for i in range(4)]
 
-    # Три миссии равномерно до нижнего поля, каждая отбита линейкой: без
-    # линеек такой шаг читался бы как незаполненная полоса, с ними — как
-    # разделы.
     missions = [
         'Содействие в восстановлении благополучия работников энергетической '
         'отрасли и их семей, пострадавших в результате событий, связанных '
@@ -72,30 +64,27 @@ def spread_02_03(s):
         'Восстановление психологического здоровья и душевного равновесия '
         'работников энергетической отрасли, пострадавших в результате событий, '
         'связанных с проведением специальной военной операции']
-    for i, t in enumerate(missions, 1):
-        y = RULES[i-1]
-        s.rule(xl, y, wl, C.LINE_D, 0.5)
-        s.text(f'Миссия {i}', xl, y - 12*mm, T.FONT_SEMI, T.SMALL, C.ORANGE, track=20)
-        s.lines(s.wrap(t, wl, T.FONT_BOOK, T.BODY), xl, y - 19*mm,
+    for i, m in enumerate(missions, 1):
+        yy = RULES[i-1]
+        s.rule(xl, yy, wl, t.line, 0.5)
+        s.text(f'Миссия {i}', xl, yy - 12*mm, T.FONT_SEMI, T.SMALL, C.ORANGE, track=20)
+        s.lines(s.wrap(m, wl, T.FONT_BOOK, T.BODY), xl, yy - 19*mm,
                 T.FONT_BOOK, T.BODY, C.WHITE, T.LEAD_BODY)
-    s.rule(xl, RULES[3], wl, C.LINE_D, 0.5)
-
-    s.text('https://эрдфонд.рф/', xl, MARGIN_BOTTOM,
-           T.FONT_MED, T.BODY, C.ORANGE)
+    s.rule(xl, RULES[3], wl, t.line, 0.5)
+    s.text('https://эрдфонд.рф/', xl, MARGIN_BOTTOM, T.FONT_MED, T.BODY, C.ORANGE)
 
     # ── правая полоса: три группы объектов ───────────────────────────────
     xr, wr = px(R, 0, 12)
     s.eyebrow(R, 'ГЕНПОДРЯД ПОЛНОГО ЦИКЛА')
     s.title(R, ['КОМПЛЕКСНОЕ', 'СТРОИТЕЛЬСТВО'])
-
     for i, name in enumerate(['Объекты энергетики', 'Промышленные объекты',
                               'Объекты гражданского назначения'], 1):
-        y = RULES[i-1]
-        s.rule(xr, y, wr, C.LINE_D, 0.5)
-        s.text(f'{i:02d}', xr, y - 18*mm, T.FONT_BLACK, 56, C.ORANGE, track=-18)
-        s.lines(s.wrap(name, wr - 44*mm, T.FONT_MED, 28), xr + 44*mm, y - 14*mm,
+        yy = RULES[i-1]
+        s.rule(xr, yy, wr, t.line, 0.5)
+        s.text(f'{i:02d}', xr, yy - 20*mm, T.FONT_BLACK, 60, C.ORANGE, track=-18)
+        s.lines(s.wrap(name, wr - 46*mm, T.FONT_MED, 28), xr + 46*mm, yy - 15*mm,
                 T.FONT_MED, 28, C.WHITE, T.LEAD_H2)
-    s.rule(xr, RULES[3], wr, C.LINE_D, 0.5)
+    s.rule(xr, RULES[3], wr, t.line, 0.5)
 
 
 # ══════════════════════════════ 4–5 · МИССИЯ | КАДРЫ И ТЕХНИКА ══════════
@@ -119,9 +108,9 @@ def spread_04_05(s):
     # ── левая полоса: миссия и цели ──────────────────────────────────────
     xl, wl = px(L, 0, 12)
     s.eyebrow(L, 'ЗАЧЕМ МЫ РАБОТАЕМ')
-    s.title(L, ['МИССИЯ', 'КОМПАНИИ'], dark=False)
+    yb = s.title(L, ['МИССИЯ', 'КОМПАНИИ'], size=52, dark=False)
 
-    y = 202*mm
+    y = yb - 26*mm
     for para in [
         'Укрепление российского электроэнергетического комплекса путём участия '
         'в проектах, позволяющих сформировать максимально благоприятные условия '
@@ -150,7 +139,7 @@ def spread_04_05(s):
     # ── правая полоса: кадры и техника ───────────────────────────────────
     xr, wr = px(R, 0, 12)
     s.eyebrow(R, 'ЧЕМ РАСПОЛАГАЕМ')
-    s.title(R, ['317 СОТРУДНИКОВ'], size=38, dark=False)
+    s.title(R, ['317 СОТРУДНИКОВ'], size=46, dark=False)
 
     s.rule(xr, 221*mm, wr, C.LINE_L, 0.6)
     for i, (num, cap) in enumerate([('141', ['единица техники']),
@@ -238,48 +227,49 @@ def _growth(s, BH):
 
 # ═════════════════════════ 6–7 · ЦИФРЫ | НАПРАВЛЕНИЯ РАБОТ ══════════════
 def spread_06_07(s):
-    c, B = s.c, BLEED
-    bg = Bg((28, 32, 74), (46, 38, 80), -B, PAGE_H + 2*B)
-    gradient(c, -B, -B, SPREAD_W + 2*B, PAGE_H + 2*B, (28, 32, 74), (46, 38, 80))
-    field_lines(c, -B, PAGE_H - 92*mm, SPREAD_W + 2*B, 92*mm + B, rows=16, seed=9,
-                alpha=(0.03, 0.13), bg=bg)
-    s.fold_shade((10, 11, 26), w=30*mm, alpha=0.26, bg=bg)
+    """Единственный сплошной оранжевый разворот каталога.
 
-    s.heads('Компания в цифрах', 'Направления работ')
-    s.folios(6)
+    Цифры — сильнейший аргумент издания, и они должны быть видны с другого
+    конца стола. Фирменный цвет здесь получает площадь, а не дозу в
+    микрокегле надзаголовка; набор идёт глубоким фиолетовым.
+    """
+    t = base(s, 6, 'Компания в цифрах', 'Направления работ',
+             ground='оранж', sag=6*mm)
+    INK, MUT, LN = C.PURPLE_DEEP, (126, 88, 67), (176, 112, 60)
 
     # ── левая полоса: цифры ──────────────────────────────────────────────
-    # Одна цифра держит полосу, остальные идут реестром в одну колонку на
-    # полную меру — так они не спорят с главной и доходят до нижнего поля.
     xl, wl = px(L, 0, 12)
     inner_l, _ = edges(L)
-    s.eyebrow(L, 'ЧТО ПОСТРОЕНО')
-    s.text('413 278', xl, Y_TITLE - 16*mm, T.FONT_BLACK, 86, C.ORANGE, track=-26)
-    s.lines(['опор ЛЭП использовано', 'при строительстве'], xl, Y_TITLE - 32*mm,
-            T.FONT_BOOK, T.H3, C.MUTED_D, T.LEAD_H2)
+    s.eyebrow(L, 'ЧТО ПОСТРОЕНО', col=INK)
+    # Кегль главной цифры подбирается под меру набора: 150 pt на семи знаках
+    # ушли бы за наборную полосу на полсотни миллиметров.
+    # 120 pt — потолок: выше метрический габарит строки налезает на
+    # надзаголовок, хотя очко цифры до него не достаёт.
+    hs = min(s.fit_size(['413 278'], wl, T.FONT_BLACK, T.HERO, track=-30), 120)
+    s.text('413 278', xl, 214*mm, T.FONT_BLACK, hs, INK, track=-30)
+    s.lines(['опор ЛЭП использовано', 'при строительстве'], xl, 193*mm,
+            T.FONT_MED, T.H3, INK, T.LEAD_H2)
 
-    rows = [('25 800 км', ['протянуто проводов', 'на воздушных ЛЭП']),
+    rows = [('25 800 км', ['протянуто проводов на воздушных ЛЭП']),
             ('1 224',     ['ПС, ТП, РП построено объектов']),
-            ('502 000',   ['объектов подключено', 'к электрическим сетям']),
+            ('502 000',   ['объектов подключено к сетям']),
             ('339 км',    ['ГНБ прокол']),
-            ('16 298 м²', ['построено и введено в эксплуатацию',
-                           'промышленных и гражданских площадей'])]
-    # Обе полосы разворота держат ОДНУ сетку линеек: при раскрытом каталоге
-    # линейки левой и правой полосы продолжают друг друга через сгиб.
-    ROW_Y, ROW_STEP = 178*mm, 31*mm
+            ('16 298 м²', ['построено и введено в эксплуатацию'])]
+    ROW_Y, ROW_STEP = 162*mm, 30*mm
     y = ROW_Y
     for num, cap in rows:
-        s.rule(xl, y + 11*mm, wl, C.LINE_D, 0.5)
-        s.text(num, xl, y, T.FONT_BLACK, 32, C.ORANGE, track=-12)
-        s.lines(cap, inner_l, y + (0 if len(cap) == 1 else 4.5*mm),
-                T.FONT_BOOK, T.SMALL, C.MUTED_D, T.LEAD_SMALL, align='r')
+        s.rule(xl, y + 11*mm, wl, LN, 0.6)
+        s.text(num, xl, y, T.FONT_BLACK, 34, INK, track=-12)
+        s.lines(cap, inner_l, y + 1*mm, T.FONT_BOOK, T.SMALL, MUT,
+                T.LEAD_SMALL, align='r')
         y -= ROW_STEP
-    s.rule(xl, y + 11*mm, wl, C.LINE_D, 0.5)
+    s.rule(xl, y + 11*mm, wl, LN, 0.6)
 
     # ── правая полоса: направления ───────────────────────────────────────
     xr, wr = px(R, 0, 12)
-    s.eyebrow(R, 'ЧТО МЫ ДЕЛАЕМ')
-    s.title(R, ['ПРОЕКТИРОВАНИЕ', 'И СТРОИТЕЛЬСТВО', 'В СФЕРЕ ЭНЕРГЕТИКИ'], size=28)
+    s.eyebrow(R, 'ЧТО МЫ ДЕЛАЕМ', col=INK)
+    s.title(R, ['ПРОЕКТИРОВАНИЕ', 'И СТРОИТЕЛЬСТВО', 'В СФЕРЕ ЭНЕРГЕТИКИ'],
+            size=30, dark=False)
 
     items = ['Внутренние электрические сети', 'Кабельные линии',
              'Воздушные линии электропередач',
@@ -288,15 +278,14 @@ def spread_06_07(s):
              'Сервисное обслуживание электроустановок',
              'Электротехническая лаборатория', 'Наружное электроосвещение',
              'Пусконаладочные работы', 'ГНБ/ГНП']
-    y0, stp = ROW_Y, ROW_STEP
-    for i, t in enumerate(items):
+    for i, it in enumerate(items):
         cx, cw = px(R, (i // 5)*6, 5)
-        yy = y0 - (i % 5)*stp
-        s.rule(cx, yy + 11*mm, cw, C.LINE_D, 0.5)
-        s.numbered(i + 1, cx, yy, t, dark=True, size=11, num_w=11*mm,
-                   width=cw, lead=1.38)
+        yy = ROW_Y - (i % 5)*ROW_STEP
+        s.rule(cx, yy + 11*mm, cw, LN, 0.6)
+        s.numbered(i + 1, cx, yy, it, size=11, num_w=11*mm, width=cw,
+                   lead=1.38, num_col=INK, col=INK)
         if i % 5 == 4:
-            s.rule(cx, yy - stp + 11*mm, cw, C.LINE_D, 0.5)
+            s.rule(cx, yy - ROW_STEP + 11*mm, cw, LN, 0.6)
 
 
 SPREADS = [('spread_02_03', spread_02_03, 2),

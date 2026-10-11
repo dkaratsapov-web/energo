@@ -181,12 +181,13 @@ class Slide(Page):
         self.lines(rows, x, y, f, s, col, T.LEAD_H1, track=-6)
         return y - (len(rows)-1)*s*T.LEAD_H1
 
-    def stat(self, x, y, num, cap, size=34, dark=True, cap_w=None):
+    def stat(self, x, y, num, cap, size=34, dark=True, cap_w=None,
+             num_col=None, cap_col=None):
         """Цифра с подписью. Подпись сидит на фиксированном расстоянии от
         базовой линии числа, иначе колонки цифр разной высоты разъезжаются."""
         from ds import C, T, mm
-        muted = C.MUTED_D if dark else C.MUTED_L
-        self.text(num, x, y, T.FONT_BLACK, size, C.ORANGE, track=-12)
+        muted = cap_col or (C.MUTED_D if dark else C.MUTED_L)
+        self.text(num, x, y, T.FONT_BLACK, size, num_col or C.ORANGE, track=-12)
         self.lines(cap if isinstance(cap, list) else [cap],
                    x, y - 7.5*mm, T.FONT_BOOK, T.SMALL, muted, T.LEAD_SMALL)
         return y - 7.5*mm
@@ -206,14 +207,14 @@ class Slide(Page):
         return rows
 
     def numbered(self, i, x, y, text, dark=True, size=None, num_w=None,
-                 width=None, lead=None):
+                 width=None, lead=None, num_col=None, col=None):
         """Строка нумерованного перечня: номер оранжевым, текст рядом."""
         from ds import C, T, mm
-        col = C.WHITE if dark else C.INK
+        col = col or (C.WHITE if dark else C.INK)
         n = f'{i:02d}'
         sz = size or T.H3
         nw = num_w or 13*mm
-        self.text(n, x, y, T.FONT_BLACK, T.H3, C.ORANGE, track=10)
+        self.text(n, x, y, T.FONT_BLACK, T.H3, num_col or C.ORANGE, track=10)
         rows = self.wrap(text, width - nw, T.FONT_BOOK, sz) if width else [text]
         self.lines(rows, x + nw, y, T.FONT_BOOK, sz, col, lead or T.LEAD_SMALL)
         return y - (len(rows)-1)*sz*(lead or T.LEAD_SMALL)

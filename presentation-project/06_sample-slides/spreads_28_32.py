@@ -60,12 +60,12 @@ def spread_28_29(s):
 
     yb = topic(s, L, 'ГДЕ МЫ РАБОТАЕМ', ['ГЕОГРАФИЯ', 'ПРОЕКТОВ'], t)
     x, w = px(L, 0, 12)
-    s.text('17', x, 186*mm, T.FONT_BLACK, 110, C.ORANGE, track=-30)
-    s.lines(['регионов', 'присутствия'], x + 46*mm, 196*mm, T.FONT_BOOK, T.H3,
+    s.text('17', x, yb - 48*mm, T.FONT_BLACK, 110, C.ORANGE, track=-30)
+    s.lines(['регионов', 'присутствия'], x + 46*mm, yb - 38*mm, T.FONT_BOOK, T.H3,
             t.muted, T.LEAD_H2)
     s.rule(x, 172*mm, w, t.line, 0.5)
 
-    y0, step = 158*mm, 15*mm
+    y0, step = yb - 72*mm, 12.5*mm
     for i, r in enumerate(REGIONS):
         cx, cw = px(L, (i // 9)*6, 5)
         yy = y0 - (i % 9)*step
