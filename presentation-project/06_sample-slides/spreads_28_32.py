@@ -133,15 +133,25 @@ def back_cover():
     # Линия электропередачи: три опоры и провисающие провода. Рисуется
     # формулами, а не снимается с растра, поэтому резка при любом увеличении.
     base_y = 44*mm
-    xs = [26*mm, 105*mm, 190*mm]
-    hs = [70*mm, 96*mm, 62*mm]
-    for x, h in zip(xs, hs):
-        tower(c, x, base_y, h, (96, 102, 150), weight=0.9, alpha=0.85, bg=bg)
-    for (x0, h0), (x1, h1) in zip(zip(xs, hs), zip(xs[1:], hs[1:])):
-        for d in (0.80, 0.92):
-            wire(c, x0, base_y + h0*d, x1, base_y + h1*d, 9*mm,
-                 (120, 126, 176), 0.6, 0.8, bg=bg)
-    nodes(c, [(x, base_y + h, 1.0) for x, h in zip(xs, hs)], C.ORANGE, 1.4, bg=bg)
+    towers = [(26*mm, 70*mm, 0.9, 0.60), (105*mm, 98*mm, 1.0, 0.85),
+              (190*mm, 62*mm, 0.8, 0.52)]
+    # Точки подвеса — из геометрии опоры (траверсы на 0,62 и 0,86 высоты с
+    # вылетом 0,46 и 0,33), как на передней обложке: иначе провода плавают
+    # мимо траверс.
+    ARMS = ((0.62, 0.46), (0.86, 0.33))
+    hang = lambda x, h, lvl, d: (x + d*h*ARMS[lvl][1],
+                                 base_y + h*(ARMS[lvl][0] - 0.075))
+    for (x0, h0, _, a0), (x1, h1, _, a1) in zip(towers, towers[1:]):
+        for lvl in (0, 1):
+            for d in (-1, 1):
+                ax, ay = hang(x0, h0, lvl, d)
+                bx, by = hang(x1, h1, lvl, d)
+                wire(c, ax, ay, bx, by, 8*mm, (120, 126, 176), 0.55,
+                     (a0 + a1)/2*0.7, bg=bg)
+    for x, h, w, a in towers:
+        tower(c, x, base_y, h, (108, 114, 162), weight=w, alpha=a, bg=bg)
+    nodes(c, [(x, base_y + h*1.055, 1.0) for x, h, _, _ in towers],
+          C.ORANGE_HOT, 1.2, bg=bg)
 
     x, _  = col_x(0, 12)
     right = PAGE_W - MARGIN_OUTER
