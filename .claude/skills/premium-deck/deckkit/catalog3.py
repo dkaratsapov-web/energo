@@ -114,20 +114,24 @@ def rows(sl, items, x, y, w, g, size=10.5, mk=True, gap=3.8, font='onest', lead=
     return y
 
 
+FOLIO = (10.0, 12.0, 7.0)                  # отступ от обреза, окно ширина × высота
+
+
 def folio(sl, pg, n, g, light):
-    """Номер полосы внизу снаружи; если там снимок — на вкладке цвета фона."""
+    """Номер полосы — одно окно 12×7 мм внизу снаружи на всех полосах.
+    В «Чертеже» окно — часть рамки (_a_frame); здесь то же окно на фоне полосы,
+    поверх снимка — залитое цветом фона."""
     if light:
-        return                              # в «Чертеже» номер стоит в окне рамки
-    x = pg.x1 - 20 if pg.side != 'L' else pg.x0
-    al = 'r' if pg.side != 'L' else 'l'
-    t = T(sl, f'{n:02d}', x, H - 12, 20, 6, 'onest-semi', 7.5, g.muted, 1.0, 0.06,
-          align=al, role='folio', max_lines=1)
-    x0, y0, x1, y1 = t.bbox()
-    if any(isinstance(e, Image) and e.x <= x0 and e.x + e.w >= x1 and e.y <= y0 and e.y + e.h >= y1
-           for e in sl.items):
-        t.color = g.ink
-        sl.items.insert(sl.items.index(t), Rect(x0 - 3, y0 - 2.4, x1 - x0 + 6, H - y0 + 2.4, g.bg,
-                                                role='plate'))
+        return
+    m, bw, bh = FOLIO
+    bx = pg.X + pg.W - m - bw if pg.side != 'L' else pg.X + m
+    by = H - m - bh
+    sl.add(Rect(bx, by, bw, bh, g.bg, role='plate'))
+    for a, b, c_, d in ((bx, by, bx + bw, by), (bx + bw, by, bx + bw, by + bh),
+                        (bx + bw, by + bh, bx, by + bh), (bx, by + bh, bx, by)):
+        sl.add(Line(a, b, c_, d, g.line, 0.5, role='tab'))
+    T(sl, f'{n:02d}', bx, H - m - 5.2, bw, 6, 'onest-semi', 7, g.muted, 1.0, 0.08, align='c',
+      role='folio', max_lines=1)
 
 
 def logo_r(sl, spec, pg, color, w=28, y=17):
@@ -291,6 +295,12 @@ def n_regions(sl, c, pg, spec, n):
     folio(sl, pg, n, g, False)
 
 
+def _under(sl, els):
+    """Элементы на весь разворот — сразу над фонами обеих полос, под всем остальным."""
+    gr = [e for e in sl.items if isinstance(e, Rect) and e.role == 'ground']
+    sl.items[:] = gr + els + [e for e in sl.items if not (isinstance(e, Rect) and e.role == 'ground')]
+
+
 def spread_map(sl, spec, regions_page, W2):
     """Карта страны на весь разворот: субъекты с тонкими границами,
     области присутствия — фирменным оранжевым по настоящим границам."""
@@ -317,8 +327,7 @@ def spread_map(sl, spec, regions_page, W2):
     missing = present - set(d['regions'])
     if missing:
         sl.warnings.append('на карте не найдены: ' + ', '.join(sorted(missing)))
-    idx = max(i for i, e in enumerate(sl.items) if isinstance(e, Rect) and e.role == 'ground') + 1
-    sl.items[idx:idx] = shapes + lines
+    _under(sl, shapes + lines)
 
 
 def n_back(sl, c, pg, spec):
@@ -351,7 +360,7 @@ def l_service(sl, c, pg, spec, n):
         y = b.y + b.h + 5
     if ims:
         top = y + 12
-        bot = y1 - (14 if c.get('caption') else 6)
+        bot = y1 - (14 if c.get('caption') else 12)   # выше окна с номером (7 мм) + воздух
         fw = fx1 - fx0 - 12
         if c.get('fill') and len(ims) == 1:   # один кадр на всё свободное место
             it = ims[0]
@@ -478,7 +487,7 @@ def l_civil(sl, c, pg, spec, n):
         T(sl, ln, L + 5.5, y - 2, R - L, 6, 'onest-semi', 8.5, g.muted, 1.2, 0.02, role='note', max_lines=1)
         y += 5.2
     top = y + 10
-    bot = y1 - 6
+    bot = y1 - 12                              # выше окна с номером (7 мм) + воздух
     rws = c['rows']
     fw = fx1 - fx0 - 12
     caps = 9 * sum(1 for r in rws if r.get('caption'))
@@ -545,7 +554,29 @@ def l_credentials(sl, c, pg, spec, n):
 
 # ======================================================== field «Поле»
 
+def f_full(sl, c, pg, spec, n):
+    """Снимок на всю полосу, заголовок — по небу; сверху мягкий переход в фиолетовый."""
+    g = GROUNDS['deep']
+    _ground(sl, pg.X, pg.W, H, g)
+    p, f = _pf(c['photos'][0])
+    sh = [dict(side='top', to=g.bg, amount=c.get('shade', 0.8), extent=c.get('shade_extent', 0.5))]
+    if c.get('shade_left'):                     # под колонкой текста — ещё и слева
+        sh.append(dict(side='left', to=g.bg, amount=c['shade_left'], extent=0.6))
+    sl.add(Image(p, pg.X, 0, pg.W, H, f, allow_crop=mc(c['photos'][0]), shade=sh))
+    logo_r(sl, spec, pg, ORANGE)
+    t = head(sl, c['title'], pg.x0, 40, pg.w * 0.86, c.get('title_size', 40), g.ink, h=100, lead=1.04,
+             track=-0.02)
+    y = t.y + t.h + 12
+    for it in c.get('items', []):
+        sl.add(Rect(pg.x0, y + 2.0, 8, 1.6, ORANGE, role='marker'))
+        tt = T(sl, it, pg.x0 + 12, y, pg.w * c.get('items_w', 0.7), 40, 'onest', 10.5, g.ink, 1.38, role='item')
+        y = tt.y + tt.h + 6
+    folio(sl, pg, n, g, False)
+
+
 def f_service(sl, c, pg, spec, n):
+    if c.get('full_photo'):
+        return f_full(sl, c, pg, spec, n)
     g = GROUNDS['deep']
     _ground(sl, pg.X, pg.W, H, g)
     logo_r(sl, spec, pg, ORANGE)
@@ -601,6 +632,7 @@ def f_photos(sl, c, pg, spec, n):
         sl.add(Image(p, pg.X, ya, pg.W, yb - ya, f))
     sl.add(Rect(pg.X, split - 1.5, pg.W, 3, ORANGE, role='band'))
     logo_r(sl, spec, pg, ORANGE)
+    folio(sl, pg, n, g, False)
 
 
 # ======================================================== сборка
@@ -615,6 +647,20 @@ ROUTE = {
     ('light', 'civil'): l_civil, ('light', 'logos'): l_logos, ('light', 'credentials'): l_credentials,
     ('field', 'service'): f_service, ('field', 'photos'): f_photos,
 }
+
+
+def spread_backdrop(sl, pages, grp):
+    """Подложка на весь разворот (под всем, кроме фона): поле страницы
+    с ключом backdrop. darken — доля затемнения к ночному тону, чтобы текст читался."""
+    bd = next((pages[p]['backdrop'] for p in grp if pages[p].get('backdrop')), None)
+    if not bd:
+        return
+    p, f = _pf(bd)
+    sh = dict(side='all', to=GROUNDS['night'].bg, amount=bd.get('darken', 0.0)) if bd.get('darken') else None
+    _under(sl, [Image(p, 0, 0, sl.w, H, f, shade=sh, role='backdrop')])
+    for t in sl.items:                          # на рисунке серый текст теряется — белым
+        if isinstance(t, Text) and t.color in (GROUNDS['night'].muted, GROUNDS['deep'].muted):
+            t.color = WHITE
 
 
 def place_logo(sl, spec, grp, styles, W):
@@ -672,6 +718,7 @@ def build(ds, spec):
         lays = [pages[p]['layout'] for p in grp]
         if 'map' in lays and 'regions' in lays:
             spread_map(sl, spec, pages[grp[lays.index('regions')]], sl.w)
+        spread_backdrop(sl, pages, grp)
         place_logo(sl, spec, grp, styles, W)
         sl.ground = GROUNDS['paper' if styles[0] == 'light' else 'night']
         for t in sl.items:

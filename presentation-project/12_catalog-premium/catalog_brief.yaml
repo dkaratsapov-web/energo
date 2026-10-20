@@ -138,6 +138,7 @@ pages:
     layout: stats
     style: night
     ground: dark2
+    backdrop: {path: backgrounds/blueprint_violet.png, darken: 0.4}   # подложка клиента на весь разворот 6–7
     items:
       - {value: '25 800 км', label: протянуто проводов на воздушных ЛЭП, icon: wires}
       - {value: '413 278', label: опор ЛЭП использовано при строительстве, icon: tower}
@@ -321,7 +322,12 @@ pages:
     title: Строительство мостового перехода через реку Волга в г. Твери (Западный Мост)
     title_size: 22
     items: ["Переустройство воздушных линий электропередач напряжением 0,4-110кВ"]
-    photos: [{path: photos/p24_worker.png, focus: [0.5, 0.55]}]
+    full_photo: true    # снимок на всю полосу, заголовок по небу — как в исходнике
+    items_w: 0.4        # подзаголовок — слева от опоры
+    shade: 0.9
+    shade_extent: 0.62
+    shade_left: 0.55
+    photos: [{path: photos_clean/p24_worker_full.png, focus: [0.5, 0.6], max_crop: 0.05}]
 
   - n: 25
     layout: photos

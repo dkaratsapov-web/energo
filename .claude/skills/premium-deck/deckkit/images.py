@@ -103,6 +103,8 @@ def _shade(arr, shade, frame=None):
     fx0, fy0, fx1, fy1 = frame or (0, 0, 1, 1)
     side, ext, amt = shade.get('side', 'bottom'), shade.get('extent', 0.5), shade.get('amount', 0.8)
     to = np.array(shade['to'], dtype=np.float32)
+    if side == 'all':                           # ровное затемнение всего кадра
+        return arr * (1 - amt) + to * amt
     if side in ('bottom', 'top'):
         u = (np.arange(h) / max(h - 1, 1) - fy0) / (fy1 - fy0)
         d = (1 - u) if side == 'bottom' else u

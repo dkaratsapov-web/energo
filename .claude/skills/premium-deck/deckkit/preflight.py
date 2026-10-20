@@ -10,7 +10,7 @@ import collections, datetime, math, os, re
 import numpy as np
 import pikepdf, pymupdf
 from PIL import Image as PImage
-from .model import Text, Image, Rect, PT
+from .model import Text, Image, Rect, Line, PT
 from .tokens import contrast, lum
 from . import fonts, images, spec as S
 
@@ -105,8 +105,17 @@ def check_layout_catalog(slides, ds, spec, log):
                 if min(a[2], b[2]) - max(a[0], b[0]) > 0.8 and min(a[3], b[3]) - max(a[1], b[1]) > 0.8:
                     log.add('FAIL', 'вёрстка', f'стр. {"–".join(map(str, pages))}',
                             f'текст налезает на текст: «{texts[a_i].lines[0][:22]}» / «{texts[b_i].lines[0][:22]}»')
+        ims = [e for e in sl.items if isinstance(e, Image) and e.role == 'image']
+        frames = [e for e in sl.items if isinstance(e, Line) and e.role == 'frame']
+        for im in ims:                          # снимок не должен заходить на рамку и окно номера
+            for e in frames:
+                lx0, lx1 = sorted((e.x0, e.x1)); ly0, ly1 = sorted((e.y0, e.y1))
+                if lx0 < im.x + im.w - 0.3 and lx1 > im.x + 0.3 and ly0 < im.y + im.h - 0.3 and ly1 > im.y + 0.3:
+                    log.add('FAIL', 'вёрстка', f'стр. {pages[min(int(im.x // W), len(pages) - 1)]}',
+                            f'снимок {os.path.basename(im.path)} заходит на рамку или окно номера')
+                    break
     if not log.count('FAIL', 'вёрстка') and not log.count('FAIL', 'печать'):
-        log.add('OK', 'вёрстка', 'все', f'тексты влезают, не налезают, не ближе {safe} мм к обрезу '
+        log.add('OK', 'вёрстка', 'все', f'снимки не заходят на рамку, тексты влезают, не налезают, не ближе {safe} мм к обрезу '
                 f'и {gutter:.0f} мм к корешку, кегли от {pr["min_text_pt"]} pt')
 
 

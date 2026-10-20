@@ -120,6 +120,13 @@ split_image, full_image, points, chart, quote, process, gallery, closing`.
 - Образцы направлений: `deckkit/catalog2.py` (A «Чертёж», B «Ночь», C «Поля»).
 - Смешанная система по выбору клиента: `deckkit/catalog3.py`, режим каждой
   полосы — `style: night | light | field` в брифе, `format.system: mixed`.
+  Номер полосы — одно окно 12×7 мм внизу снаружи на всех полосах (в «Чертеже»
+  это окно рамки); снимки до окна не доходят — preflight это проверяет.
+  Подложка клиента на весь разворот — `backdrop: {path, darken}` у любой полосы
+  разворота; снимок на всю полосу с заголовком по небу — `full_photo: true`
+  (`shade`, `shade_extent`, `shade_left`, `items_w` — чтобы текст читался).
+  Убранный по решению клиента текст — `removed: [...]` у полосы: сверка
+  текста его вычитает и пишет в отчёт.
 - Формат: `format: {kind: catalog, page_mm: [210, 297], spreads: true}`,
   вместо `slides` — `pages` с номером `n` каждой полосы. Образец —
   `presentation-project/12_catalog-premium/catalog_brief.yaml`.
