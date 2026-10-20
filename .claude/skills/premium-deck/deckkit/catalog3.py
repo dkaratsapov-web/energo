@@ -18,7 +18,7 @@
 полос и снимки — из оригинала без изменений.
 """
 import math
-from .model import Rect, Line, Image, Text, Slide, Shape, PT
+from .model import Rect, Line, Dot, Image, Text, Slide, Shape, Poly, PT
 from .tokens import mix
 from . import vector, fonts
 from .catalog2 import (GROUNDS, ORANGE, V_DEEP, V_BRIGHT, WHITE, T, _logo, _ground, _a_frame,
@@ -27,6 +27,63 @@ from .pages import Pg, _pf
 
 H = 297.0
 MARK = (14.0, 1.6)                         # оранжевая метка над заголовком
+CROP = 0.15                                # больше — кадр уже теряет смысл
+LOGO_W, LOGO_TOP, LOGO_OUT = 28.0, 17.0, 16.0   # логотип: всегда здесь
+LOGO_FLOOR = LOGO_TOP + LOGO_W * 0.675 + 6      # ниже — свободно для снимков
+
+
+def ar(it):
+    """Пропорция снимка w/h по исходнику (после снятия кромок)."""
+    from . import images
+    p, _ = _pf(it)
+    sw, sh = images.src_size(p)
+    return sw / sh
+
+
+def crop_of(it, w, h):
+    """Какую долю кадра срежет окно w×h (по одной стороне)."""
+    a, b = ar(it), w / h
+    return 1 - (a / b if b > a else b / a)
+
+
+def column(items, w, avail, gap):
+    """Снимки столбцом во всю ширину: высоты — по пропорциям; если места
+    мало — сначала подрезка до CROP, потом сужение столбца."""
+    nat = [w / ar(it) for it in items]
+    total = sum(nat) + gap * (len(items) - 1)
+    k = (avail - gap * (len(items) - 1)) / sum(nat)
+    if k >= 1:
+        return w, nat
+    kc = max(k, 1 - CROP)
+    hs = [n * kc for n in nat]
+    if k >= 1 - CROP:
+        return w, [n * k for n in nat]
+    s = k / kc                                # не влезает и с подрезкой — сужаем
+    return w * s, [n * kc * s for n in nat]
+
+
+def row(items, w, avail, gap):
+    """Снимки в ряд на одной высоте: ширина каждого — по пропорции."""
+    a = [ar(it) for it in items]
+    h = (w - gap * (len(items) - 1)) / sum(a)
+    if h <= avail:
+        return h, [h * x for x in a]
+    if h * (1 - CROP) <= avail:              # чуть подрезаем по высоте
+        return avail, [(w - gap * (len(items) - 1)) * x / sum(a) for x in a]
+    return avail, [avail * x for x in a]      # уже не влезает — ряд уже
+
+
+def bottom_photo(it, x, w, text_end, min_gap=14):
+    """Снимок во всю ширину снизу полосы: высота по пропорции, подрезка
+    не больше CROP; если текста слишком много — окно сужается."""
+    nat = w / ar(it)
+    avail = H - (text_end + min_gap)
+    if nat <= avail:
+        return x, H - nat, w, nat
+    if nat * (1 - CROP) <= avail:
+        return x, H - avail, w, avail
+    ww = avail * ar(it) / (1 - CROP)
+    return x, H - avail, ww, avail
 
 
 def mark(sl, x, y):
@@ -99,7 +156,7 @@ def n_numbered(sl, c, pg, spec, n):
                      sh * e.get('ar', 0.88), sh, role='emblem'))
         if e.get('wordmark'):
             shape, _ = vector.place(e['wordmark'], pg.x0 + sh * e.get('ar', 0.88) + 6,
-                                    y + (sh - 0.377 * 58) / 2, 58, g.ink)
+                                    y + (sh - 0.377 * 58) / 2, 58, g.ink, role='wordmark')
             sl.add(shape)
         y += sh + 22
     mark(sl, pg.x0, y)
@@ -139,6 +196,46 @@ def n_directions(sl, c, pg, spec, n):
     folio(sl, pg, n, g, False)
 
 
+def n_stats(sl, c, pg, spec, n):
+    """Цифры: иконка по смыслу, цифра, подпись; строки на волосяных линейках."""
+    from . import icons
+    g = GROUNDS['night']
+    _ground(sl, pg.X, pg.W, H, g)
+    items = c['items']
+    y = 30
+    rh = (H - 30 - 26) / len(items)
+    ic = 12.0
+    for i, it in enumerate(items):
+        yy = y + i * rh
+        sl.add(Line(pg.x0, yy, pg.x1, yy, g.line, 0.5))
+        size = 30 if i else 44
+        vy = yy + 6
+        if it.get('icon'):
+            asc = fonts.info('wide')['ascent'] * size * PT
+            sl.items.extend(icons.draw(it['icon'], pg.x0, vy + asc * 0.55 - ic / 2, ic, ORANGE))
+        x = pg.x0 + (ic + 7 if it.get('icon') else 0)
+        T(sl, it['value'], x, vy, pg.w * 0.62 - (x - pg.x0), 30, 'wide', size, ORANGE if i == 0 else g.ink,
+          1.0, -0.02, role='hero' if i == 0 else 'stat', max_lines=1)
+        T(sl, it.get('label', ''), pg.x0 + pg.w * 0.66, yy + 7.5, pg.w * 0.34, 20, 'onest', 9, g.muted, 1.35)
+    folio(sl, pg, n, g, False)
+
+
+def n_list(sl, c, pg, spec, n):
+    """Список направлений: оранжевая точка у каждого пункта."""
+    g = GROUNDS['deep']
+    _ground(sl, pg.X, pg.W, H, g)
+    mark(sl, pg.x0, 48)
+    t = T(sl, c['title'], pg.x0, 55, pg.w, 60, 'wide-bold', 22, g.ink, 1.22, -0.01, role='title')
+    y = max(t.y + t.h + 30, 130)
+    for it in c['items']:
+        sl.add(Line(pg.x0, y, pg.x1, y, g.line, 0.5))
+        tt = T(sl, it, pg.x0 + 6, y + 3.8, pg.w - 6, 14, 'onest', 11.5, g.ink, 1.3, role='item')
+        sl.add(Dot(pg.x0 + 1.3, tt.baseline(0) - 11.5 * PT * 0.34, 1.1, ORANGE, role='marker'))
+        y = tt.y + tt.h + 4
+    sl.add(Line(pg.x0, y, pg.x1, y, g.line, 0.5))
+    folio(sl, pg, n, g, False)
+
+
 def n_service(sl, c, pg, spec, n):
     """Ночная полоса направления: заголовок на ночном фоне, снимок в вылет снизу."""
     g = GROUNDS['night']
@@ -149,8 +246,12 @@ def n_service(sl, c, pg, spec, n):
     ims = c.get('photos', [])
     if ims:
         p, f = _pf(ims[0])
-        top = max(y + 16, H * c.get('photo_top', 0.48))
-        img = Image(p, pg.X, top, pg.W, H - top, f)
+        x, top, w, hh = bottom_photo(ims[0], pg.X, pg.W, y)
+        if w < pg.W and pg.side == 'L':
+            x = pg.X                              # узкое окно — к внешнему обрезу
+        elif w < pg.W:
+            x = pg.X + pg.W - w
+        img = Image(p, x, top, w, hh, f)
         sl.add(img)
         if c.get('caption'):
             caption_on(sl, g, pg, c['caption'], img)
@@ -160,30 +261,57 @@ def n_service(sl, c, pg, spec, n):
 def n_map(sl, c, pg, spec, n):
     g = GROUNDS['night']
     _ground(sl, pg.X, pg.W, H, g)
-    m = spec.get('_map')
-    if m:
-        country, regions = m
-        dy = spec.get('map_offset_mm', 0.0)
-        tr = lambda cs: [[(pg.X + x * pg.W, y * pg.W + dy) for x, y in cc] for cc in cs]
-        sl.add(Shape(tr(country), (48, 41, 86), 'map'))
-        sl.add(Shape(tr(regions), mix(g.bg, ORANGE, 0.85), 'map'))
-    mark(sl, pg.x0, 30)
-    T(sl, c['title'], pg.x0, 37, pg.w, 60, 'wide-bold', 30, g.ink, 1.12, -0.02, role='hero')
+    mark(sl, pg.x0, 26)
+    T(sl, c['title'], pg.x0, 33, pg.w * 0.6, 40, 'wide-bold', 24, g.ink, 1.12, -0.02, role='hero')
     folio(sl, pg, n, g, False)
 
 
 def n_regions(sl, c, pg, spec, n):
+    """Список областей — внизу, в свободном месте под южной границей карты."""
     g = GROUNDS['night']
     _ground(sl, pg.X, pg.W, H, g)
-    logo_r(sl, spec, pg, ORANGE)
     items = c['items']
-    half = math.ceil(len(items) / 2)
-    cw = (pg.w - 8) / 2
-    y0 = 66
-    for ci, chunk in enumerate((items[:half], items[half:])):
-        x = pg.x0 + ci * (cw + 8)
-        rows(sl, chunk, x, y0, cw, g, size=10, gap=3.4)
+    cols = 3
+    per = math.ceil(len(items) / cols)
+    cw = (pg.w - 8) / cols
+    y0 = H - 22 - per * 6.4
+    for ci in range(cols):
+        x = pg.x0 + ci * (cw + 4)
+        for j, it in enumerate(items[ci * per:(ci + 1) * per]):
+            yy = y0 + j * 6.4
+            sl.add(Rect(x, yy + 1.5, 1.6, 1.6, ORANGE, role='marker'))
+            T(sl, it, x + 4, yy, cw - 4, 6, 'onest', 9, g.ink, 1.2, role='item', max_lines=1)
     folio(sl, pg, n, g, False)
+
+
+def spread_map(sl, spec, regions_page, W2):
+    """Карта страны на весь разворот: субъекты с тонкими границами,
+    области присутствия — фирменным оранжевым по настоящим границам."""
+    from . import geo
+    path = spec.get('_geo')
+    if not path:
+        return
+    d = geo.load(path)
+    present = set(regions_page['items'])
+    g = GROUNDS['night']
+    mw = W2 - 40                                 # 20 мм поля с каждой стороны
+    mh = mw * d['aspect']
+    x0 = 20
+    y0 = spec.get('map_top_mm', 62)
+    base = (50, 42, 92)
+    k_ = mw
+    shapes, lines = [], []
+    for name, rings in d['regions'].items():
+        pts = [[(x0 + x * k_, y0 + y * k_) for x, y in r] for r in rings]
+        col = ORANGE if name in present else base
+        shapes.append(Shape(pts, col, 'map'))
+        for r in pts:
+            lines.append(Poly(r + [r[0]], stroke=g.bg, width=0.3, role='map-line'))
+    missing = present - set(d['regions'])
+    if missing:
+        sl.warnings.append('на карте не найдены: ' + ', '.join(sorted(missing)))
+    idx = max(i for i, e in enumerate(sl.items) if isinstance(e, Rect) and e.role == 'ground') + 1
+    sl.items[idx:idx] = shapes + lines
 
 
 def n_back(sl, c, pg, spec):
@@ -215,20 +343,23 @@ def l_service(sl, c, pg, spec, n):
         b = T(sl, ptxt, L, y, (R - L) * 0.9, 80, 'onest', 10, g.ink, 1.42)
         y = b.y + b.h + 5
     if ims:
-        top = max(y + 12, H * c.get('photo_top', 0.45))
+        top = y + 12
         bot = y1 - (14 if c.get('caption') else 6)
-        n_im = len(ims)
-        vertical = c.get('vertical', False)
-        if vertical:
-            hh = (bot - top - 4 * (n_im - 1)) / n_im
-            for i, it in enumerate(ims):
+        fw = fx1 - fx0 - 12
+        if c.get('vertical', False):
+            cw, hs = column(ims, fw, bot - top, 4)
+            yy = bot - sum(hs) - 4 * (len(hs) - 1)
+            for it, hh in zip(ims, hs):
                 p, f = _pf(it)
-                sl.add(Image(p, fx0 + 6, top + i * (hh + 4), fx1 - fx0 - 12, hh, f))
+                sl.add(Image(p, fx0 + 6, yy, cw, hh, f))
+                yy += hh + 4
         else:
-            ww = (fx1 - fx0 - 12 - 4 * (n_im - 1)) / n_im
-            for i, it in enumerate(ims):
+            hh, ws = row(ims, fw, bot - top, 4)
+            xx = fx0 + 6
+            for it, ww in zip(ims, ws):
                 p, f = _pf(it)
-                sl.add(Image(p, fx0 + 6 + i * (ww + 4), top, ww, bot - top, f))
+                sl.add(Image(p, xx, bot - hh, ww, hh, f))
+                xx += ww + 4
         if c.get('caption'):
             T(sl, c['caption'], fx0 + 6, bot + 3.2, fx1 - fx0 - 12, 6, 'onest-semi', 7.5, g.muted, 1.2, 0.02,
               align='r' if pg.side == 'L' else 'l', role='caption', max_lines=1)
@@ -236,15 +367,15 @@ def l_service(sl, c, pg, spec, n):
 
 def l_photos(sl, c, pg, spec, n):
     g, L, R, y0, y1, fx0, fx1 = _light(sl, pg, n)
-    ims = c['photos']
-    top, bot = y0 + 6, y1 - 12
-    split = top + (bot - top) * c.get('split', 0.5)
-    for i, it in enumerate(ims[:2]):
+    ims = c['photos'][:2]
+    top = LOGO_FLOOR if pg.side != 'L' else y0 + 6
+    bot = y1 - 12
+    cw, hs = column(ims, fx1 - fx0 - 12, bot - top, 4)
+    yy = top + (bot - top - sum(hs) - 4 * (len(hs) - 1)) / 2
+    for it, hh in zip(ims, hs):
         p, f = _pf(it)
-        ya, yb = (top, split - 2) if i == 0 else (split + 2, bot)
-        sl.add(Image(p, fx0 + 6, ya, fx1 - fx0 - 12, yb - ya, f))
-    if pg.side != 'L':
-        _logo(sl, spec, fx1 - 18 - 22, bot + 1.6, 22, V_DEEP)    # левее окна с номером
+        sl.add(Image(p, fx0 + 6, yy, cw, hh, f))
+        yy += hh + 4
 
 
 def l_mission_chart(sl, c, pg, spec, n):
@@ -320,21 +451,31 @@ def l_civil(sl, c, pg, spec, n):
     y = t.y + t.h + 14
     for ptxt in c.get('paras', []):
         y = rows(sl, [ptxt], L, y, R - L, g, size=10.5) + 6
-    top = max(y + 10, 118)
+    top = y + 10
     bot = y1 - 6
     rws = c['rows']
-    caps = sum(1 for r in rws if r.get('caption'))
-    hgt = (bot - top - 4 * (len(rws) - 1) - 9 * caps) / len(rws)
-    yy = top
-    for r in rws:
+    fw = fx1 - fx0 - 12
+    caps = 9 * sum(1 for r in rws if r.get('caption'))
+    nat = [(fw - 4 * (len(r['photos']) - 1)) / sum(ar(it) for it in r['photos']) for r in rws]
+    avail = bot - top - caps - 4 * (len(rws) - 1)
+    k = min(1.0, avail / sum(nat))
+    kc = max(k, 1 - CROP)                     # подрезка рядов по высоте не больше CROP
+    shrink = k / kc                           # остальное — сужением рядов
+    yy = bot - (sum(nat) * k + caps + 4 * (len(rws) - 1))
+    for r, hn in zip(rws, nat):
         ims = r['photos']
-        ww = (fx1 - fx0 - 12 - 4 * (len(ims) - 1)) / len(ims)
-        for i, it in enumerate(ims):
+        hh = hn * k
+        a = [ar(it) for it in ims]
+        rw = fw * shrink
+        ws = [(rw - 4 * (len(ims) - 1)) * x / sum(a) for x in a]
+        xx = fx0 + 6
+        for it, ww in zip(ims, ws):
             p, f = _pf(it)
-            sl.add(Image(p, fx0 + 6 + i * (ww + 4), yy, ww, hgt, f))
-        yy += hgt
+            sl.add(Image(p, xx, yy, ww, hh, f))
+            xx += ww + 4
+        yy += hh
         if r.get('caption'):
-            T(sl, r['caption'], fx0 + 6, yy + 2.6, fx1 - fx0 - 12, 6, 'onest-semi', 7.5, g.muted, 1.2,
+            T(sl, r['caption'], fx0 + 6, yy + 2.6, rw, 6, 'onest-semi', 7.5, g.muted, 1.2,
               0.02, align='r' if pg.side == 'L' else 'l', role='caption', max_lines=1)
             yy += 9
         yy += 4
@@ -397,23 +538,34 @@ def f_service(sl, c, pg, spec, n):
         y += 16
     if ims:
         p, f = _pf(ims[0])
-        top = max(y + 14, H * c.get('photo_top', 0.56))
-        # снимок во всю полосу: оранжевая черта над ним продолжает черту соседней полосы
-        xa, xb = pg.X, pg.X + pg.W
-        img = Image(p, xa, top, xb - xa, H - top, f)
+        x, top, w, hh = bottom_photo(ims[0], pg.X, pg.W, y)
+        # черта на высоте соседней полосы, если кадр это выдерживает без лишней подрезки
+        want = getattr(sl, 'band_y', None)
+        if want and want >= y + 14 and crop_of(ims[0], pg.W, H - want) <= CROP:
+            x, top, w, hh = pg.X, want, pg.W, H - want
+        if w < pg.W:
+            x = pg.X if pg.side == 'L' else pg.X + pg.W - w
+        img = Image(p, x, top, w, hh, f)
         sl.add(img)
-        sl.add(Rect(xa, top - 1.5, xb - xa, 3, ORANGE, role='band'))
-        sl.band_y = top                      # соседняя полоса режет снимки на этой же высоте
+        sl.add(Rect(pg.X, top - 1.5, pg.W, 3, ORANGE, role='band'))
         if c.get('caption'):
             caption_on(sl, g, pg, c['caption'], img)
     folio(sl, pg, n, g, False)
+
+
+def _split(ims, W=210.0):
+    """Где разрезать полосу на два кадра, чтобы оба потеряли поровну и мало."""
+    if len(ims) < 2:
+        return H
+    n1, n2 = W / ar(ims[0]), W / ar(ims[1])
+    return H * n1 / (n1 + n2)
 
 
 def f_photos(sl, c, pg, spec, n):
     g = GROUNDS['deep']
     _ground(sl, pg.X, pg.W, H, g)
     ims = c['photos']
-    split = getattr(sl, 'band_y', None) or H * c.get('split', 0.5)
+    split = getattr(sl, 'band_y', None) or _split(ims)
     for i, it in enumerate(ims[:2]):
         p, f = _pf(it)
         ya, yb = (0, split) if i == 0 else (split, H)
@@ -427,13 +579,31 @@ def f_photos(sl, c, pg, spec, n):
 ROUTE = {
     ('night', 'cover'): 'cover', ('night', 'back'): 'back',
     ('night', 'numbered'): n_numbered, ('night', 'directions'): n_directions,
-    ('night', 'stats'): b_stats, ('night', 'list'): b_list, ('night', 'service'): n_service,
+    ('night', 'stats'): n_stats, ('night', 'list'): n_list, ('night', 'service'): n_service,
     ('night', 'map'): n_map, ('night', 'regions'): n_regions,
     ('light', 'service'): l_service, ('light', 'photos'): l_photos,
     ('light', 'mission_chart'): l_mission_chart, ('light', 'figures'): l_figures,
     ('light', 'civil'): l_civil, ('light', 'logos'): l_logos, ('light', 'credentials'): l_credentials,
     ('field', 'service'): f_service, ('field', 'photos'): f_photos,
 }
+
+
+def place_logo(sl, spec, grp, styles, W):
+    """Логотип всегда в одном месте: вверху снаружи, 16 мм от обреза, ширина 28 мм.
+    На правой полосе и лицевой обложке — справа; на задней обложке — слева."""
+    sl.items[:] = [e for e in sl.items if not (isinstance(e, Shape) and e.role == 'logo')]
+    if not spec.get('_logo'):
+        return
+    for i, pn in enumerate(grp):
+        single = len(grp) == 1
+        right = (i == 1) or (single and pn == 1)
+        left_back = single and pn != 1
+        if not (right or left_back):
+            continue
+        X = i * W
+        x = X + W - LOGO_OUT - LOGO_W if right else X + LOGO_OUT
+        color = V_DEEP if styles[i] == 'light' else ORANGE
+        _logo(sl, spec, x, LOGO_TOP, LOGO_W, color)
 
 
 def _spreads(n_pages):
@@ -453,6 +623,8 @@ def build(ds, spec):
         styles = [pages[p].get('style', 'night') for p in grp]
         sl = Slide(k, '+'.join(f'{s}:{pages[p]["layout"]}' for s, p in zip(styles, grp)), None)
         sl.w, sl.h, sl.pages = W * len(grp), H, grp
+        if len(grp) == 2 and styles[1] == 'field' and pages[grp[1]]['layout'] == 'photos':
+            sl.band_y = _split(pages[grp[1]]['photos'])     # общая черта поля на развороте
         for i, pn in enumerate(grp):
             c = pages[pn]
             side = 'S' if len(grp) == 1 else ('L' if i == 0 else 'R')
@@ -468,6 +640,10 @@ def build(ds, spec):
                 fn(sl, c, pg, spec, pn)
             if c.get('notes'):
                 sl.notes += c['notes'] + '\n'
+        lays = [pages[p]['layout'] for p in grp]
+        if 'map' in lays and 'regions' in lays:
+            spread_map(sl, spec, pages[grp[lays.index('regions')]], sl.w)
+        place_logo(sl, spec, grp, styles, W)
         sl.ground = GROUNDS['paper' if styles[0] == 'light' else 'night']
         for t in sl.items:
             if isinstance(t, Text):

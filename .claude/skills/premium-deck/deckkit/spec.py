@@ -93,6 +93,10 @@ def _load_catalog(spec, base, root, errors):
         errors.append(f'полосы идут не подряд: {ns}')
     if spec.get('logo'):
         spec['_logo'] = _abs(root, spec['logo'])
+    if spec.get('geo'):
+        spec['_geo'] = _abs(root, spec['geo'])
+        if not os.path.exists(spec['_geo']):
+            errors.append(f'нет файла карты {spec["_geo"]}')
     if spec.get('map'):
         import pickle
         from . import vector

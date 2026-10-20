@@ -42,7 +42,8 @@ brand:                       # замерено по утверждённому 
 assets_dir: ../05_assets
 logo: logo/energogroup.svg
 map: map_ru.pkl
-map_offset_mm: 34          # карта ниже заголовка «ГЕОГРАФИЯ ПРОЕКТОВ»
+geo: russia_regions.pkl     # карта по субъектам РФ (Natural Earth, public domain)
+map_top_mm: 62
 
 print:
   printer: не выбрана
@@ -138,12 +139,12 @@ pages:
     style: night
     ground: dark2
     items:
-      - {value: '25 800 км', label: протянуто проводов на воздушных ЛЭП}
-      - {value: '413 278', label: опор ЛЭП использовано при строительстве}
-      - {value: '1 224', label: 'ПС, ТП, РП построено объектов'}
-      - {value: '502 000', label: объектов подключено к электрическим сетям}
-      - {value: '339 км', label: ГНБ прокол}
-      - {value: '16 298 м²', label: построено и введено в эксплуатацию промышленных и гражданских площадей}
+      - {value: '25 800 км', label: протянуто проводов на воздушных ЛЭП, icon: wires}
+      - {value: '413 278', label: опор ЛЭП использовано при строительстве, icon: tower}
+      - {value: '1 224', label: 'ПС, ТП, РП построено объектов', icon: substation}
+      - {value: '502 000', label: объектов подключено к электрическим сетям, icon: plug}
+      - {value: '339 км', label: ГНБ прокол, icon: drilling}
+      - {value: '16 298 м²', label: построено и введено в эксплуатацию промышленных и гражданских площадей, icon: area}
 
   - n: 7
     layout: list
@@ -267,7 +268,7 @@ pages:
     title_size: 24
     title_w: 0.95
     items: [Собственные установки, Квалифицированный инженерный состав, Оптимизация сроков, Многолетний опыт строительства]
-    photos: [photos/p19_hdd_pipes.png]
+    photos: [photos_clean/p19_hdd_pipes.png]
     photo_top: 0.54
     caption: Прокол под а/д М4 «Дон»
 
@@ -336,7 +337,7 @@ pages:
     title: "ГРАЖДАНСКОЕ\nСТРОИТЕЛЬСТВО"
     paras: [Строительство кирпичных многоэтажных жилых домов с индивидуальным отоплением комфорт-класса]
     rows:
-      - {photos: [photos/p26_yard.png], caption: Ввод в эксплуатацию 2023г.}
+      - {photos: [photos_clean/p26_yard.png], caption: Ввод в эксплуатацию 2023г.}
       - {photos: [photos/p26_house1.png, photos/p26_house3.png]}
       - {photos: [photos/p26_house4.png, photos/p26_house2.png], caption: Ввод в эксплуатацию 2025г.}
 
@@ -346,7 +347,7 @@ pages:
     ground: paper
     title: "ПРОМЫШЛЕННОЕ\nСТРОИТЕЛЬСТВО"
     items: ["Строительство коммерческой недвижимости.\nКласс зданий В/В+"]
-    photos: [photos/p27_aerial.png, {path: photos/p27_tower.png, focus: [0.5, 0.42]}]
+    photos: [photos_clean/p27_aerial.png, {path: photos/p27_tower.png, focus: [0.5, 0.42]}]
     vertical: true
     photo_top: 0.40
     caption: «Аструм-Сити» — 6-е по высоте здание в Московской области
