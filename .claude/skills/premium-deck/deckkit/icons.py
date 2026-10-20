@@ -88,5 +88,32 @@ def area(x, y, s, c):
 ICONS = dict(wires=wires, tower=tower, substation=substation, plug=plug, drilling=drilling, area=area)
 
 
+def _bbox(els):
+    xs, ys = [], []
+    for e in els:
+        if isinstance(e, Line):
+            xs += [e.x0, e.x1]; ys += [e.y0, e.y1]
+        elif isinstance(e, Poly):
+            xs += [p[0] for p in e.pts]; ys += [p[1] for p in e.pts]
+        elif isinstance(e, Dot):
+            xs += [e.cx - e.r, e.cx + e.r]; ys += [e.cy - e.r, e.cy + e.r]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
 def draw(name, x, y, s, color):
     return ICONS[name](x, y, s, color)
+
+
+def centered(name, cx, cy, s, color):
+    """Иконка, у которой центр нарисованного (а не квадрата) — в (cx, cy)."""
+    els = ICONS[name](0, 0, s, color)
+    x0, y0, x1, y1 = _bbox(els)
+    dx, dy = cx - (x0 + x1) / 2, cy - (y0 + y1) / 2
+    for e in els:
+        if isinstance(e, Line):
+            e.x0 += dx; e.x1 += dx; e.y0 += dy; e.y1 += dy
+        elif isinstance(e, Poly):
+            e.pts = [(px + dx, py + dy) for px, py in e.pts]
+        elif isinstance(e, Dot):
+            e.cx += dx; e.cy += dy
+    return els

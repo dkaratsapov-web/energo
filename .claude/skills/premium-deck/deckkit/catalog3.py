@@ -40,6 +40,11 @@ def ar(it):
     return sw / sh
 
 
+def mc(it):
+    """Допуск подрезки кадра: по умолчанию CROP, у снимка с небом/фасадом по краям — свой."""
+    return it.get('max_crop', CROP) if isinstance(it, dict) else CROP
+
+
 def crop_of(it, w, h):
     """Какую долю кадра срежет окно w×h (по одной стороне)."""
     a, b = ar(it), w / h
@@ -210,9 +215,11 @@ def n_stats(sl, c, pg, spec, n):
         sl.add(Line(pg.x0, yy, pg.x1, yy, g.line, 0.5))
         size = 30 if i else 44
         vy = yy + 6
-        if it.get('icon'):
-            asc = fonts.info('wide')['ascent'] * size * PT
-            sl.items.extend(icons.draw(it['icon'], pg.x0, vy + asc * 0.55 - ic / 2, ic, ORANGE))
+        if it.get('icon'):                   # центр иконки = центр высоты цифр
+            f = fonts.info('wide')
+            base = vy + f['ascent'] * size * PT
+            cy = base - f['cap'] * size * PT / 2
+            sl.items.extend(icons.centered(it['icon'], pg.x0 + ic / 2, cy, ic, ORANGE))
         x = pg.x0 + (ic + 7 if it.get('icon') else 0)
         T(sl, it['value'], x, vy, pg.w * 0.62 - (x - pg.x0), 30, 'wide', size, ORANGE if i == 0 else g.ink,
           1.0, -0.02, role='hero' if i == 0 else 'stat', max_lines=1)
@@ -267,20 +274,20 @@ def n_map(sl, c, pg, spec, n):
 
 
 def n_regions(sl, c, pg, spec, n):
-    """Список областей — внизу, в свободном месте под южной границей карты."""
+    """Области — одним списком поверх карты, на всю высоту полосы."""
     g = GROUNDS['night']
     _ground(sl, pg.X, pg.W, H, g)
     items = c['items']
-    cols = 3
-    per = math.ceil(len(items) / cols)
-    cw = (pg.w - 8) / cols
-    y0 = H - 22 - per * 6.4
-    for ci in range(cols):
-        x = pg.x0 + ci * (cw + 4)
-        for j, it in enumerate(items[ci * per:(ci + 1) * per]):
-            yy = y0 + j * 6.4
-            sl.add(Rect(x, yy + 1.5, 1.6, 1.6, ORANGE, role='marker'))
-            T(sl, it, x + 4, yy, cw - 4, 6, 'onest', 9, g.ink, 1.2, role='item', max_lines=1)
+    top, bot = LOGO_FLOOR + 14, H - 26
+    step = (bot - top) / len(items)
+    w = pg.w * 0.78
+    for j, it in enumerate(items):
+        y = top + j * step
+        sl.add(Line(pg.x0, y, pg.x0 + w, y, mix(g.line, WHITE, 0.15), 0.5))
+        t = T(sl, it, pg.x0 + 6, y + (step - 10.5 * PT) / 2 - 0.4, w - 6, 8, 'onest', 10.5, g.ink, 1.2,
+              role='item', max_lines=1)
+        sl.add(Dot(pg.x0 + 1.4, t.baseline(0) - 10.5 * PT * 0.34, 1.1, ORANGE, role='marker'))
+    sl.add(Line(pg.x0, bot, pg.x0 + w, bot, mix(g.line, WHITE, 0.15), 0.5))
     folio(sl, pg, n, g, False)
 
 
@@ -346,7 +353,13 @@ def l_service(sl, c, pg, spec, n):
         top = y + 12
         bot = y1 - (14 if c.get('caption') else 6)
         fw = fx1 - fx0 - 12
-        if c.get('vertical', False):
+        if c.get('fill') and len(ims) == 1:   # один кадр на всё свободное место
+            it = ims[0]
+            a_ = ar(it)
+            hh = min(bot - top, fw / (a_ * (1 - mc(it))))
+            p, f = _pf(it)
+            sl.add(Image(p, fx0 + 6, bot - hh, fw, hh, f, allow_crop=mc(it) if mc(it) > CROP else 0.0))
+        elif c.get('vertical', False):
             cw, hs = column(ims, fw, bot - top, 4)
             yy = bot - sum(hs) - 4 * (len(hs) - 1)
             for it, hh in zip(ims, hs):
@@ -431,18 +444,28 @@ def l_figures(sl, c, pg, spec, n):
     y_tab = max(cap.y + cap.h, yy) + 18
     cols = c['columns']
     cw = (R - L - 8) / len(cols)
+    RH = 12.5                                  # одна сетка строк для обеих колонок
+    from . import icons
     for ci, rws in enumerate(cols):
         x = L + ci * (cw + 8)
-        y = y_tab
-        for r in rws:
+        for j, r in enumerate(rws):
+            y = y_tab + j * RH
             sl.add(Line(x, y, x + cw, y, g.line, 0.5))
             if r.get('num'):
                 T(sl, r['num'], x, y + 3.6, 20, 10, 'onest-black', 16, g.ink, 1.0, -0.02, role='num',
                   max_lines=1)
-            b = T(sl, r['label'], x + (17 if r.get('num') else 0), y + 4.9,
-                  cw - (17 if r.get('num') else 0), 20, 'onest', 9, g.muted, 1.3)
-            y = max(y + 12.5, b.y + b.h + 4)
-        sl.add(Line(x, y, x + cw, y, g.line, 0.5))
+            else:                              # строка без числа — иконка на месте числа
+                sl.items.extend(icons.draw(r.get('icon', 'area'), x + 0.5, y + 2.6, 7.5, ORANGE))
+            # подпись на одной базовой линии с числом; две строки — по центру строки таблицы
+            nb = y + 3.6 + fonts.info('onest-black')['ascent'] * 16 * PT
+            fa = fonts.info('onest')['ascent'] * 9 * PT
+            lines = len(fonts.wrap(r['label'], 'onest', 9, (cw - 17) / PT))
+            if lines == 1:
+                ty = nb - fa
+            else:
+                ty = y + RH / 2 - ((lines - 1) * 9 * 1.3 * PT) / 2 - fa + 9 * PT * 0.36
+            T(sl, r['label'], x + 17, ty, cw - 17, 20, 'onest', 9, g.muted, 1.3)
+        sl.add(Line(x, y_tab + len(rws) * RH, x + cw, y_tab + len(rws) * RH, g.line, 0.5))
 
 
 def l_civil(sl, c, pg, spec, n):
@@ -451,6 +474,9 @@ def l_civil(sl, c, pg, spec, n):
     y = t.y + t.h + 14
     for ptxt in c.get('paras', []):
         y = rows(sl, [ptxt], L, y, R - L, g, size=10.5) + 6
+    for ln in c.get('note_lines', []):
+        T(sl, ln, L + 5.5, y - 2, R - L, 6, 'onest-semi', 8.5, g.muted, 1.2, 0.02, role='note', max_lines=1)
+        y += 5.2
     top = y + 10
     bot = y1 - 6
     rws = c['rows']
@@ -459,7 +485,10 @@ def l_civil(sl, c, pg, spec, n):
     nat = [(fw - 4 * (len(r['photos']) - 1)) / sum(ar(it) for it in r['photos']) for r in rws]
     avail = bot - top - caps - 4 * (len(rws) - 1)
     k = min(1.0, avail / sum(nat))
-    kc = max(k, 1 - CROP)                     # подрезка рядов по высоте не больше CROP
+    if c.get('fill'):                         # ряды растут на свободное место, кадры
+        m = min(mc(it) for r in rws for it in r['photos'])     # подрезаются с боков не больше допуска
+        k = min(avail / sum(nat), 1 / (1 - m))
+    kc = max(k, 1 - CROP) if k < 1 else k     # подрезка рядов по высоте не больше CROP
     shrink = k / kc                           # остальное — сужением рядов
     yy = bot - (sum(nat) * k + caps + 4 * (len(rws) - 1))
     for r, hn in zip(rws, nat):
@@ -471,7 +500,7 @@ def l_civil(sl, c, pg, spec, n):
         xx = fx0 + 6
         for it, ww in zip(ims, ws):
             p, f = _pf(it)
-            sl.add(Image(p, xx, yy, ww, hh, f))
+            sl.add(Image(p, xx, yy, ww, hh, f, allow_crop=mc(it) if mc(it) > CROP else 0.0))
             xx += ww + 4
         yy += hh
         if r.get('caption'):

@@ -177,7 +177,7 @@ def draw_slide(c, sl, fr, mode, cache, placements, notext=False, tac=300.0, page
             sw, sh = images.src_size(el.path)
             a_src, a_box = sw / sh, el.w / el.h
             crop = 1 - (a_src / a_box if a_box > a_src else a_box / a_src)
-            placements.append(dict(slide=page or sl.n, path=el.path, w_mm=w * fr.k, h_mm=h * fr.k, crop=crop,
+            placements.append(dict(slide=page or sl.n, path=el.path, w_mm=w * fr.k, h_mm=h * fr.k, crop=crop, allow=el.allow_crop, role=el.role,
                                    dpi=images.effective_dpi(el.path, w, h, el.focus)
                                    * (w / (w * fr.k))))
         elif isinstance(el, Text) and not notext:

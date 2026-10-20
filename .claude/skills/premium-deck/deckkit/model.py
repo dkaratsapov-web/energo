@@ -65,6 +65,7 @@ class Image:
     focus: Tuple[float, float] = (0.5, 0.5)     # куда смотрит кадрирование
     shade: Optional[dict] = None                # затемнение, впекается в пиксели
     role: str = 'image'
+    allow_crop: float = 0.0                     # подрезка, согласованная для этого кадра
 
 
 @dataclass

@@ -156,7 +156,7 @@ def check_images(placements, spec, log, mode):
             seen.add((p['path'], 'cut'))
             log.add('WARN', 'снимки', where, f'{name}: по краям срезаны полоски чужого кадра {cut} px (t,b,l,r) — проверьте исходник')
         cr = p.get('crop', 0)
-        if mode != 'print' and cr > 0.2 and p.get('role', 'image') == 'image':
+        if mode != 'print' and cr > max(0.2, p.get('allow', 0) + 0.02) and p.get('role', 'image') == 'image':
             log.add('FAIL' if cr > 0.35 else 'WARN', 'снимки', where,
                     f'{name}: кадр обрезан на {cr * 100:.0f}% — окно не в пропорциях снимка')
         d = p['dpi']
@@ -171,9 +171,12 @@ def check_images(placements, spec, log, mode):
             if d < 96:
                 log.add('WARN', 'снимки', where, f'{name}: {d:.0f} dpi на экране — может быть мыльно на проекторе 4K')
     if mode != 'print':
-        worst = max((p.get('crop', 0) for p in placements), default=0)
+        free = [p.get('crop', 0) for p in placements if not p.get('allow') and p.get('role', 'image') == 'image']
+        agreed = [p for p in placements if p.get('allow')]
+        worst = max(free, default=0)
         if worst <= 0.2:
-            log.add('OK', 'снимки', 'все', f'ни один кадр не обрезан больше чем на 20 % (наибольшая подрезка {worst * 100:.0f} %)')
+            log.add('OK', 'снимки', 'все', f'ни один кадр не обрезан больше чем на 20 % (наибольшая подрезка {worst * 100:.0f} %)'
+                    + (f'; ещё {len(agreed)} кадр(а) подрезаны по согласованному допуску' if agreed else ''))
     if mode == 'print' and not log.count('FAIL', 'снимки'):
         log.add('OK', 'снимки', 'все', f'эффективное разрешение не ниже {pr["warn_dpi"]} dpi')
 
