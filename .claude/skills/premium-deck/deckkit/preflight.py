@@ -483,8 +483,13 @@ def check_source_text(slides, ds, spec, log):
             # строка, разорванная переносом «-», склеивается обратно
             ours[pn].append(' '.join(t.lines).replace('- ', '-'))
     bad = 0
+    removed = {p['n']: p.get('removed', []) for p in spec.get('pages', [])}
     for pn in sorted(int(k) for k in orig):
         a = collections.Counter(_words(' '.join(orig[str(pn)])))
+        if removed.get(pn):                   # согласованные с клиентом удаления
+            a -= collections.Counter(_words(' '.join(removed[pn])))
+            log.add('WARN', 'текст', f'стр. {pn}', 'убрано по решению клиента: '
+                    + '; '.join(f'«{r}»' for r in removed[pn]))
         b = collections.Counter(_words(' '.join(ours.get(pn, []))))
         miss, extra = a - b, b - a
         if miss or extra:

@@ -336,11 +336,11 @@ pages:
     ground: paper
     title: "ГРАЖДАНСКОЕ\nСТРОИТЕЛЬСТВО"
     paras: [Строительство кирпичных многоэтажных жилых домов с индивидуальным отоплением комфорт-класса]
-    note_lines: [Ввод в эксплуатацию 2023г., Ввод в эксплуатацию 2025г.]   # кадр двора убран по просьбе клиента
+    removed: [Ввод в эксплуатацию 2023г.]   # подпись к кадру двора; кадр убран — по решению клиента
     fill: true
     rows:
       - {photos: [{path: photos/p26_house1.png, max_crop: 0.3}, {path: photos/p26_house3.png, max_crop: 0.3}]}
-      - {photos: [{path: photos/p26_house4.png, max_crop: 0.3}, {path: photos/p26_house2.png, max_crop: 0.3}]}
+      - {photos: [{path: photos/p26_house4.png, max_crop: 0.3}, {path: photos/p26_house2.png, max_crop: 0.3}], caption: Ввод в эксплуатацию 2025г.}
 
   - n: 27
     layout: service
@@ -348,7 +348,7 @@ pages:
     ground: paper
     title: "ПРОМЫШЛЕННОЕ\nСТРОИТЕЛЬСТВО"
     items: ["Строительство коммерческой недвижимости.\nКласс зданий В/В+"]
-    photos: [{path: photos/p27_tower.png, focus: [0.56, 0.5], max_crop: 0.48}]   # вид сверху убран по просьбе клиента
+    photos: [{path: photos_clean/p27_tower.png, focus: [0.5, 1.0], max_crop: 0.12}]   # вид сверху убран; кадр вырезан заново до низа, с основанием здания
     fill: true
     caption: «Аструм-Сити» — 6-е по высоте здание в Московской области
 
