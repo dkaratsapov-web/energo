@@ -133,7 +133,9 @@ def prepare(path, w_mm, h_mm, focus=(0.5, 0.5), shade=None, dpi=300, cache='/tmp
     if im.width > need:
         im = im.resize((need, round(need * h_mm / w_mm)), PImage.LANCZOS)
     if shade:
-        arr = _shade(np.asarray(im, dtype=np.float32), shade, frame)
+        arr = np.asarray(im, dtype=np.float32)
+        for sh in (shade if isinstance(shade, (list, tuple)) else [shade]):
+            arr = _shade(arr, sh, frame)
         im = PImage.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
     os.makedirs(cache, exist_ok=True)
     if cmyk_tac:

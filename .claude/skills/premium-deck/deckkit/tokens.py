@@ -119,20 +119,26 @@ def readable(col, bg, need=4.6):
     return c
 
 
-def system(concept='A', brand=None):
+# Печатный каталог A4: кегли под чтение с руки, поля под переплёт.
+PRINT_SCALE = dict(hero=104, h1=34, h2=20, lead=13, body=9.5, label=7.0, caption=7.5)
+
+
+def system(concept='A', brand=None, fmt=None):
+    """fmt — None (слайды 16:9) или {'page_mm': [210, 297], 'spreads': True}."""
     c = copy.deepcopy(CONCEPTS[concept])
     b = dict(DEFAULT_BRAND, **(brand or {}))
     acc, dark = hexrgb(b['accent']), hexrgb(b['dark'])
     ink, paper = hexrgb(b['ink']), hexrgb(b['paper'])
-    deep = mix(dark, (8, 9, 20), 0.35)                    # глубже фирменного
+    # фирменный тёмный по умолчанию в B углубляется; brand.keep_dark — не трогать
+    deep = dark if b.get('keep_dark') else mix(dark, (8, 9, 20), 0.35)
     g = {
         'paper':  Ground('paper', paper, ink, mix(ink, paper, 0.42), mix(ink, paper, 0.78), acc),
         'paper2': Ground('paper2', mix(paper, ink, 0.06), ink, mix(ink, paper, 0.40),
                          mix(ink, paper, 0.72), acc),
         'dark':   Ground('dark', deep if concept == 'B' else dark, paper,
                          mix(paper, dark, 0.42), mix(paper, dark, 0.72), acc),
-        'dark2':  Ground('dark2', mix(deep, paper, 0.07), paper, mix(paper, deep, 0.40),
-                         mix(paper, deep, 0.70), acc),
+        'dark2':  Ground('dark2', hexrgb(b['dark2']) if b.get('dark2') else mix(deep, paper, 0.07),
+                         paper, mix(paper, deep, 0.40), mix(paper, deep, 0.70), acc),
     }
     # насыщенное поле: текст тёмный или светлый — что контрастнее
     on_acc = max((ink, paper), key=lambda v: contrast(v, acc))
@@ -144,8 +150,17 @@ def system(concept='A', brand=None):
         gr.muted = readable(gr.muted, gr.bg)
     c['ground'] = g
     c['brand'] = b
-    c['grid'] = dict(margin=18.0, top=16.0, bottom=14.0, cols=12, gutter=5.0)
-    c['W'], c['H'] = SLIDE_W, SLIDE_H
+    if fmt:
+        pw, ph = fmt.get('page_mm', (210, 297))
+        c['scale'] = dict(PRINT_SCALE, **fmt.get('scale', {}))
+        c['grid'] = dict(margin=16.0, inner=18.0, top=15.0, bottom=13.0, cols=6, gutter=5.0)
+        c['W'], c['H'] = pw, ph
+        c['spreads'] = fmt.get('spreads', True)
+        c['print_doc'] = True
+    else:
+        c['grid'] = dict(margin=18.0, top=16.0, bottom=14.0, cols=12, gutter=5.0)
+        c['W'], c['H'] = SLIDE_W, SLIDE_H
+        c['print_doc'] = False
     return c
 
 

@@ -77,6 +77,39 @@ def check_layout(slides, ds, spec, log, k_print):
         log.add('OK', 'вёрстка', 'все', 'тексты влезают, не налезают друг на друга, кегли не мельче 10 pt')
 
 
+def check_layout_catalog(slides, ds, spec, log):
+    """Каталог: поля полосы, зона корешка, кегли печати, наложения."""
+    W, H = ds['W'], ds['H']
+    pr = spec['print']
+    safe, gutter = pr['safe_mm'], 10.0
+    for sl in slides:
+        pages = sl.pages or (sl.n,)
+        for w in sl.warnings:
+            log.add('FAIL' if 'не влез' in w or 'нет знаков' in w else 'WARN', 'вёрстка',
+                    f'стр. {"–".join(map(str, pages))}', w)
+        texts = [t for t in sl.items if isinstance(t, Text) and t.role not in DECOR]
+        for t in texts:
+            x0, y0, x1, y1 = t.bbox()
+            i = min(int(x0 // W), len(pages) - 1)
+            pn, X = pages[i], i * W
+            where = f'стр. {pn}'
+            if t.size < pr['min_text_pt']:
+                log.add('FAIL', 'печать', where, f'кегль {t.size:.1f} pt < {pr["min_text_pt"]} pt: «{t.lines[0][:30]}»')
+            if x0 < X + safe - 0.01 or x1 > X + W - safe + 0.01 or y0 < safe or y1 > H - safe:
+                log.add('FAIL', 'печать', where, f'текст ближе {safe} мм к обрезу: «{t.lines[0][:30]}»')
+            if len(pages) == 2 and (x1 > W - gutter and x0 < W + gutter):
+                log.add('FAIL', 'печать', where, f'текст в зоне корешка (±{gutter:.0f} мм): «{t.lines[0][:30]}»')
+        for a_i in range(len(texts)):
+            for b_i in range(a_i + 1, len(texts)):
+                a, b = texts[a_i].bbox(), texts[b_i].bbox()
+                if min(a[2], b[2]) - max(a[0], b[0]) > 0.8 and min(a[3], b[3]) - max(a[1], b[1]) > 0.8:
+                    log.add('FAIL', 'вёрстка', f'стр. {"–".join(map(str, pages))}',
+                            f'текст налезает на текст: «{texts[a_i].lines[0][:22]}» / «{texts[b_i].lines[0][:22]}»')
+    if not log.count('FAIL', 'вёрстка') and not log.count('FAIL', 'печать'):
+        log.add('OK', 'вёрстка', 'все', f'тексты влезают, не налезают, не ближе {safe} мм к обрезу '
+                f'и {gutter:.0f} мм к корешку, кегли от {pr["min_text_pt"]} pt')
+
+
 def check_contrast(slides, notext_pdf, log, dpi=60):
     """Контраст по фактическому фону: рендер без текста, пиксели под строкой."""
     doc = pymupdf.open(notext_pdf)
@@ -148,6 +181,7 @@ def check_print_pdf(path, spec, log):
     bad = 0
     for i, pg in enumerate(pdf.pages, 1):
         mb = [float(v) for v in pg.obj.MediaBox]
+        mb = [mb[0], mb[1], mb[2], mb[3]]
         tb = [float(v) for v in pg.obj.get('/TrimBox', mb)]
         bb = [float(v) for v in pg.obj.get('/BleedBox', mb)]
         want_m = ((tw + 2 * b) * MM, (th + 2 * b) * MM)
@@ -403,3 +437,53 @@ def report(log, spec, files, path):
     with open(path, 'w', encoding='utf-8') as f:
         f.write('\n'.join(L) + '\n')
     return path, fails, warns, un
+
+
+# ------------------------------------------------------------ сверка с оригиналом
+
+def _words(s):
+    import re
+    return re.findall(r'[\wё]+', s.lower().replace('ё', 'е').replace(' ', ' '))
+
+
+def check_source_text(slides, ds, spec, log):
+    """Каждая полоса — те же слова, что в утверждённом оригинале.
+
+    Источник — texts_by_page.json (тексты, снятые с оригинала по полосам).
+    Сравниваются мультимножества слов: регистр, кавычки, переносы и
+    неразрывные пробелы не важны, а пропавшее, лишнее или изменённое
+    слово — дефект. Номера полос, которые движок ставит сам, не считаются.
+    """
+    import json, collections
+    src = (spec.get('source') or {}).get('texts')
+    if not src or not os.path.exists(src):
+        log.add('WARN', 'текст', 'файл', 'нет файла текстов оригинала — сверка не выполнена')
+        return
+    orig = json.load(open(src, encoding='utf-8'))
+    ours = collections.defaultdict(list)
+    W = ds['W']
+    for sl in slides:
+        pages = sl.pages or (sl.n,)
+        for t in sl.items:
+            if not isinstance(t, Text) or t.role == 'folio':
+                continue
+            x0 = t.bbox()[0]
+            pn = pages[min(int(x0 // W), len(pages) - 1)] if len(pages) > 1 else pages[0]
+            # строка, разорванная переносом «-», склеивается обратно
+            ours[pn].append(' '.join(t.lines).replace('- ', '-'))
+    bad = 0
+    for pn in sorted(int(k) for k in orig):
+        a = collections.Counter(_words(' '.join(orig[str(pn)])))
+        b = collections.Counter(_words(' '.join(ours.get(pn, []))))
+        miss, extra = a - b, b - a
+        if miss or extra:
+            bad += 1
+            msg = []
+            if miss:
+                msg.append('нет в вёрстке: ' + ', '.join(f'«{w}»' + (f'×{n}' if n > 1 else '') for w, n in miss.items()))
+            if extra:
+                msg.append('лишнее: ' + ', '.join(f'«{w}»' + (f'×{n}' if n > 1 else '') for w, n in extra.items()))
+            log.add('FAIL', 'текст', f'стр. {pn}', '; '.join(msg))
+    total = sum(len(_words(' '.join(v))) for v in orig.values())
+    if not bad:
+        log.add('OK', 'текст', 'все', f'все {len(orig)} полос совпадают с утверждённым оригиналом слово в слово ({total} слов)')

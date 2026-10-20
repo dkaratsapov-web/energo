@@ -101,23 +101,27 @@ def _out(brief, out):
 
 
 def concepts(brief, out=None, pick=(0, 1, 4)):
-    from deckkit import spec as S, tokens, layouts, render_pdf, preview, docs
+    from deckkit import spec as S, tokens, layouts, pages, render_pdf, preview, docs
     sp = S.load(brief)
     if sp['_errors']:
         sys.exit('Ошибки брифа:\n  ' + '\n  '.join(sp['_errors']))
+    catalog = (sp.get('format') or {}).get('kind') == 'catalog'
+    if catalog:
+        pick = (0, 2, 7)                  # обложка, цифры, направление со снимком
     d = _out(brief, out)
     cdir = os.path.join(d, 'concepts')
     os.makedirs(cdir, exist_ok=True)
     files, labels = [], []
     for code in 'ABC':
-        ds = tokens.system(code, sp['brand'])
-        sl = layouts.build(ds, sp)
+        ds = tokens.system(code, sp['brand'], sp.get('format') if catalog else None)
+        sl = pages.build(ds, sp) if catalog else layouts.build(ds, sp)
         chosen = [sl[i] for i in pick if i < len(sl)]
         pdf = os.path.join(cdir, f'concept_{code}.pdf')
         render_pdf.render(chosen, pdf, ds['W'], ds['H'], meta=sp['meta'])
         f = preview.pngs(pdf, cdir, dpi=72, prefix=f'concept_{code}')
         files += f
-        labels += [f'{code} · {ds["name"]} · слайд {i + 1:02d}' for i in pick if i < len(sl)]
+        labels += [f'{code} · {ds["name"]} · ' + ('стр. ' + '–'.join(map(str, sl[i].pages)) if catalog
+                                                 else f'слайд {i + 1:02d}') for i in pick if i < len(sl)]
     sheet = preview.contact(files, os.path.join(d, 'concepts.jpg'), cols=len(pick), width=2400, labels=labels)
     # общий PDF концепций
     import pymupdf
@@ -131,7 +135,7 @@ def concepts(brief, out=None, pick=(0, 1, 4)):
 
 
 def build(brief, out=None, concept=None, do_print=True):
-    from deckkit import spec as S, tokens, layouts, render_pdf, render_pptx, preview, preflight, pdfx, docs
+    from deckkit import spec as S, tokens, layouts, pages, render_pdf, render_pptx, preview, preflight, pdfx, docs
     t0 = time.time()
     sp = S.load(brief)
     if sp['_errors']:
@@ -144,11 +148,14 @@ def build(brief, out=None, concept=None, do_print=True):
     os.makedirs(pv)
     cache = os.path.join(d, '.cache')
     os.makedirs(cache, exist_ok=True)
-    ds = tokens.system(sp['concept'], sp['brand'])
-    slides = layouts.build(ds, sp)
+    catalog = (sp.get('format') or {}).get('kind') == 'catalog'
+    ds = tokens.system(sp['concept'], sp['brand'], sp.get('format') if catalog else None)
+    slides = pages.build(ds, sp) if catalog else layouts.build(ds, sp)
     W, H = ds['W'], ds['H']
     pr = sp['print']
     trim = pr['trim_mm']
+    if catalog and (abs(trim[0] - W) > 0.01 or abs(trim[1] - H) > 0.01):
+        sys.exit(f'Обрез {trim} не совпадает с форматом полосы {W}×{H} мм.')
     if abs(trim[0] / trim[1] - W / H) > 0.005:
         sys.exit(f'Формат печати {trim} не 16:9 — слайды нельзя масштабировать без искажения. '
                  f'Возьмите {trim[0]}×{trim[0] * H / W:.2f} мм или задайте другой формат слайда.')
@@ -160,9 +167,13 @@ def build(brief, out=None, concept=None, do_print=True):
     _, pl_prev, _ = render_pdf.render(slides, f_prev, W, H, meta=sp['meta'], cache=cache)
     notext = os.path.join(cache, 'notext.pdf')
     render_pdf.render(slides, notext, W, H, notext=True, cache=cache)
+    f_pages = f_prev
+    if catalog:                       # те же полосы по одной — для сверки с PPTX
+        f_pages = os.path.join(cache, 'pages_preview.pdf')
+        render_pdf.render(slides, f_pages, W, H, mode='pages', meta=sp['meta'], cache=cache)
     # 2. PPTX
     files['PPTX'] = f_pptx = os.path.join(d, 'presentation.pptx')
-    render_pptx.render(slides, f_pptx, W, H, cache=cache, meta=sp['meta'])
+    render_pptx.render(slides, f_pptx, W, H, cache=cache, meta=sp['meta'], split=catalog)
     lo = preview.pptx_to_pdf(f_pptx, cache)
     # 3. печать
     f_print = None
@@ -173,23 +184,31 @@ def build(brief, out=None, concept=None, do_print=True):
         files['Печатный PDF/X-1a'] = f_print = os.path.join(d, 'presentation_print.pdf')
         pdfx.to_pdfx(lay, f_print, sp['meta']['title'])
     # 4. просмотр каждого слайда
-    a = preview.pngs(f_prev, pv, dpi=110, prefix='slide')
-    preview.contact(a, os.path.join(pv, 'sheet_preview.jpg'), cols=3)
+    a = preview.pngs(f_prev, pv, dpi=60 if catalog else 110, prefix='spread' if catalog else 'slide')
+    preview.contact(a, os.path.join(pv, 'sheet_preview.jpg'), cols=2 if catalog else 3,
+                    labels=[s_.layout if not catalog else 'стр. ' + '–'.join(map(str, s_.pages))
+                            for s_ in slides])
+    if catalog:
+        a = preview.pngs(f_pages, pv, dpi=60, prefix='page')
     if lo:
-        b = preview.pngs(lo, pv, dpi=110, prefix='pptx')
+        b = preview.pngs(lo, pv, dpi=60 if catalog else 110, prefix='pptx')
         pair, lab = [], []
         for i, (x, y) in enumerate(zip(a, b), 1):
             pair += [x, y]; lab += [f'{i:02d} · PDF', f'{i:02d} · PPTX (LibreOffice)']
-        preview.contact(pair, os.path.join(pv, 'sheet_pptx_vs_pdf.jpg'), cols=2, labels=lab)
+        preview.contact(pair, os.path.join(pv, 'sheet_pptx_vs_pdf.jpg'), cols=4 if catalog else 2, labels=lab)
     if f_print:
-        c = preview.pngs(f_print, pv, dpi=80, prefix='print')
-        preview.contact(c, os.path.join(pv, 'sheet_print_bleed.jpg'), cols=3,
+        c = preview.pngs(f_print, pv, dpi=50 if catalog else 80, prefix='print')
+        preview.contact(c, os.path.join(pv, 'sheet_print_bleed.jpg'), cols=8 if catalog else 3,
                         labels=[f'{i:02d} · печать, с вылетами' for i in range(1, len(c) + 1)])
     # 5. проверки
-    preflight.check_layout(slides, ds, sp, log, k)
+    if catalog:
+        preflight.check_layout_catalog(slides, ds, sp, log)
+        preflight.check_source_text(slides, ds, sp, log)
+    else:
+        preflight.check_layout(slides, ds, sp, log, k)
     preflight.check_contrast(slides, notext, log)
     preflight.check_images(pl_prev, sp, log, 'screen')
-    preflight.check_pptx(f_pptx, lo, f_prev, sp, log)
+    preflight.check_pptx(f_pptx, lo, f_pages, sp, log)
     if f_print:
         preflight.check_images(pl_print, sp, log, 'print')
         preflight.check_print_pdf(f_print, sp, log)

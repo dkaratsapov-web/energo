@@ -33,6 +33,77 @@ def _abs(base, p):
     return p if os.path.isabs(p) else os.path.normpath(os.path.join(base, p))
 
 
+PAGE_REQUIRED = {
+    'cover': ['title', 'image'], 'back': ['image'], 'numbered': ['lead', 'items'],
+    'directions': ['title', 'items'], 'mission_chart': ['blocks', 'chart'],
+    'figures': ['columns', 'totals'], 'stats': ['items'], 'list': ['title', 'items'],
+    'service': ['title'], 'photos': ['photos'], 'civil': ['title', 'rows'], 'map': ['title'],
+    'regions': ['items'], 'logos': ['logos'], 'credentials': ['items'],
+}
+ASSET_KEYS = ('image', 'photos', 'logos', 'path', 'wordmark')
+
+
+def _resolve(node, root, errors, where):
+    """Пути к файлам в любом месте страницы — от assets_dir; проверка наличия."""
+    if isinstance(node, dict):
+        for k, v in list(node.items()):
+            if k in ASSET_KEYS and isinstance(v, str):
+                node[k] = _abs(root, v)
+                if not os.path.exists(node[k]):
+                    errors.append(f'{where}: нет файла {node[k]}')
+            elif k in ASSET_KEYS and isinstance(v, list):
+                out = []
+                for it in v:
+                    if isinstance(it, str):
+                        it = _abs(root, it)
+                        if not os.path.exists(it):
+                            errors.append(f'{where}: нет файла {it}')
+                    else:
+                        _resolve(it, root, errors, where)
+                    out.append(it)
+                node[k] = out
+            else:
+                _resolve(v, root, errors, where)
+    elif isinstance(node, list):
+        for it in node:
+            _resolve(it, root, errors, where)
+
+
+def _load_catalog(spec, base, root, errors):
+    fmt = spec['format']
+    spec['print'].setdefault('trim_mm', fmt.get('page_mm', [210, 297]))
+    if spec['print'].get('trim_mm') == PRINT_DEFAULTS['trim_mm']:
+        spec['print']['trim_mm'] = fmt.get('page_mm', [210, 297])
+    seen = set()
+    for pg in spec.get('pages', []):
+        n, lay = pg.get('n'), pg.get('layout')
+        where = f'полоса {n}'
+        if n in seen:
+            errors.append(f'{where}: номер повторяется')
+        seen.add(n)
+        if lay not in PAGE_REQUIRED:
+            errors.append(f'{where}: неизвестная композиция «{lay}»')
+            continue
+        for k in PAGE_REQUIRED[lay]:
+            if not pg.get(k):
+                errors.append(f'{where} ({lay}): нет поля «{k}»')
+        _resolve(pg, root, errors, where)
+    ns = sorted(seen)
+    if ns and ns != list(range(1, ns[-1] + 1)):
+        errors.append(f'полосы идут не подряд: {ns}')
+    if spec.get('logo'):
+        spec['_logo'] = _abs(root, spec['logo'])
+    if spec.get('map'):
+        import pickle
+        from . import vector
+        (pc, w, h), (pr, _, _) = pickle.load(open(_abs(root, spec['map']), 'rb'))
+        spec['_map'] = (vector.from_cmds(pc, w, h), vector.from_cmds(pr, w, h))
+    src = spec.get('source') or {}
+    for k in ('pdf', 'texts'):
+        if src.get(k):
+            src[k] = _abs(base, src[k])
+
+
 def load(path):
     with open(path, encoding='utf-8') as f:
         spec = yaml.safe_load(f)
@@ -45,6 +116,11 @@ def load(path):
     pr.update(spec.get('print') or {})
     spec['print'] = pr
     errors = []
+    if (spec.get('format') or {}).get('kind') == 'catalog':
+        _load_catalog(spec, base, root, errors)
+        spec['_errors'] = errors
+        spec['_path'] = os.path.abspath(path)
+        return spec
     for i, s in enumerate(spec.get('slides', []), 1):
         lay = s.get('layout')
         if lay not in REQUIRED:

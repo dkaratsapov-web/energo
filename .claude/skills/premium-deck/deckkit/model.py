@@ -46,6 +46,19 @@ class Dot:
 
 
 @dataclass
+class Shape:
+    """Составная залитая фигура (знак, логотип): контуры с дырами, even-odd."""
+    contours: list
+    fill: tuple
+    role: str = 'logo'
+
+    def bbox(self):
+        xs = [p[0] for c in self.contours for p in c]
+        ys = [p[1] for c in self.contours for p in c]
+        return min(xs), min(ys), max(xs), max(ys)
+
+
+@dataclass
 class Image:
     path: str
     x: float; y: float; w: float; h: float
@@ -100,6 +113,9 @@ class Slide:
     items: list = field(default_factory=list)
     notes: str = ''
     warnings: list = field(default_factory=list)
+    w: Optional[float] = None          # размер полотна, мм (None — размер колоды)
+    h: Optional[float] = None
+    pages: Tuple[int, ...] = ()        # номера полос, если полотно — разворот/полоса
 
     def add(self, *els):
         self.items.extend(els)

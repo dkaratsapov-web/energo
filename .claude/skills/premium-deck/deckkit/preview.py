@@ -35,7 +35,9 @@ def contact(files, out, cols=3, width=2400, labels=None, bg=(236, 235, 231)):
     for i, im in enumerate(ims):
         x = gap + (i % cols) * (cw + gap)
         y = gap + (i // cols) * (ch + lab + gap)
-        sheet.paste(im.resize((cw, ch), Image.LANCZOS), (x, y + lab))
+        k = min(cw / im.width, ch / im.height)          # без искажения пропорций
+        t = im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.LANCZOS)
+        sheet.paste(t, (x, y + lab))
         d.text((x, y + 4), (labels[i] if labels else f'{i + 1:02d}'), fill=(60, 60, 70), font=fnt)
     sheet.save(out, quality=90)
     return out

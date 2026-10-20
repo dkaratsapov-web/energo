@@ -10,7 +10,7 @@
   * никакой прозрачности — только смешанные цвета и впечённое затемнение.
 """
 import math, random
-from .model import Rect, Line, Poly, Dot, Image, Text, Slide, PT
+from .model import Rect, Line, Poly, Dot, Image, Text, Shape, Slide, PT
 from .tokens import col_x, mix, contrast
 from . import fonts
 
@@ -118,8 +118,8 @@ def motif(sl, ds, g, n, total, strength='quiet', seed=None, edge='right', col=No
             sl.add(Rect(W - 7, H * 0.38, 7, H * 0.62, acc))
 
 
-def _arc_try(ds, g, n, strength, edge, col, rnd, k):
-    W, H = ds['W'], ds['H']
+def _arc_try(ds, g, n, strength, edge, col, rnd, k, W=None, H=None):
+    W, H = W or ds['W'], H or ds['H']
     col = col or mix(g.bg, g.ink, 0.22 if strength == 'quiet' else 0.34)
     if strength == 'loud':
         r = H * rnd.uniform(0.9, 1.3)
@@ -154,8 +154,13 @@ def place_arc(sl, ds):
         if isinstance(el, Text) and el.role != 'ghost':
             x0, y0, x1, y1 = el.bbox()
             obst.append((x0 - pad, y0 - pad, x1 + pad, y1 + pad))
-        elif isinstance(el, Rect) and el.role == 'bar':
+        elif isinstance(el, Rect) and el.role in ('bar', 'card'):
             obst.append((el.x - pad, el.y - pad, el.x + el.w + pad, el.y + el.h + pad))
+        elif isinstance(el, Image) and req.get('avoid_images'):
+            obst.append((el.x - pad, el.y - pad, el.x + el.w + pad, el.y + el.h + pad))
+        elif isinstance(el, Shape):
+            x0, y0, x1, y1 = el.bbox()
+            obst.append((x0 - pad, y0 - pad, x1 + pad, y1 + pad))
     def hits(els):
         for e in els:
             pts = e.pts if isinstance(e, Poly) else [(e.cx, e.cy)]
@@ -167,12 +172,13 @@ def place_arc(sl, ds):
     rnd = random.Random(req['seed'] if req['seed'] is not None else sl.n * 7919)
     chosen = None
     for k in range(60):
-        els = _arc_try(ds, g, sl.n, req['strength'], req['edge'], req['col'], rnd, k)
+        els = _arc_try(ds, g, sl.n, req['strength'], req['edge'], req['col'], rnd, k, sl.w, sl.h)
         if els and not hits(els):
             chosen = els
             break
     if not chosen:
-        sl.warnings.append('мотив-дуга не нашла места без пересечения с текстом — пропущена')
+        if not req.get('optional'):
+            sl.warnings.append('мотив-дуга не нашла места без пересечения с текстом — пропущена')
         return
     # под текст: сразу после фона и снимков
     idx = 0
