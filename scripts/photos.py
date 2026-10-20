@@ -45,8 +45,8 @@ CLEAN = [
  ('p11_trench_top',   11,    0,  230, 1240,  874, 'Траншея с трубами, вид сверху'),
  ('p11_excavator',    11,    0,  880, 1240, 1754, 'Экскаватор роет траншею'),
  ('p12_ohl_winter',   12,    0,  990, 1240, 1754, 'Воздушная ЛЭП зимой'),
- ('p13_workers',      13,    0,  230, 1240,  870, 'Рабочие у бетонной опоры'),
- ('p13_crane',        13,    0,  870, 1240, 1754, 'Гусеничный кран на площадке'),
+ ('p13_workers',      13,    0,  230, 1240,  863, 'Рабочие у бетонной опоры'),
+ ('p13_crane',        13,    0,  877, 1240, 1754, 'Гусеничный кран на площадке'),
  ('p14_ktp_blue',     14,    0, 1000,  620, 1754, 'КТП, синий блок-модуль'),
  ('p14_substation',   14,  620, 1000, 1240, 1754, 'Площадка подстанции'),
  ('p15_subst_pano',   15,    0,  230, 1240,  870, 'Панорама подстанции, зима'),
@@ -72,6 +72,52 @@ CLEAN = [
  ('p30_partners',     30,  440,  140, 1180, 1620, 'Стена логотипов заказчиков'),
 ]
 
+# Поправка завала, в градусах против часовой стрелки. Снята не автоматом:
+# автомат путает завал с перспективой. Съёмка снизу (дома, высотка, опоры)
+# даёт сходящиеся вертикали — их поворот только испортит. Поэтому угол
+# меряется по кадрам с заведомой горизонталью (кромка ограждения, дорога,
+# линия грунта) и проверяется глазом на листе отвеса, который печатает
+# scripts/look.py. Поворот стоит разрешения — обрезка до вписанного
+# прямоугольника съедает около 3,5 % ширины на каждые 2°, — поэтому
+# правятся только кадры с заметным завалом.
+TILT = {
+    'p09_office_desks':  +3.0,
+    'p10_cable_lay':     +2.0,
+    'p13_crane':         +3.0,
+    'p15_subst_pano':    +2.0,
+    'p17_road_night':    -1.5,
+    'p23_pipe_trench':   -2.0,
+}
+
+
+def trim_edges(a, max_px=14, tol=14.0):
+    """Срезать тонкие однотонные кромки по краям вырезки.
+
+    Вырезка из сведённой полосы иногда цепляет полоску разделителя прежней
+    вёрстки — фиолетовую черту между кадрами или светлый просвет. На мелком
+    превью её не видно, на полосе это грязный край кадра. Кромка считается
+    однотонной, если разброс яркости по ней мал, а цвет заметно отличается
+    от соседней строки внутри кадра.
+    """
+    g = cv2.cvtColor(a, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    h, w = g.shape
+    cut = {'t': 0, 'b': 0, 'l': 0, 'r': 0}
+    def line(side, i):
+        return {'t': g[i], 'b': g[h-1-i], 'l': g[:, i], 'r': g[:, w-1-i]}[side]
+    for side in cut:
+        for i in range(max_px):
+            ln = line(side, i)
+            inner = line(side, min(i + 3, max_px + 2))
+            uniform = ln.std() < tol
+            differs = abs(float(ln.mean()) - float(inner.mean())) > 10
+            if uniform and differs:
+                cut[side] = i + 1
+            elif not uniform:
+                break
+    t, b, l, r = cut['t'], cut['b'], cut['l'], cut['r']
+    return a[t:h-b or None, l:w-r or None], cut
+
+
 def page_raster(n):
     """Полоса n утверждённого каталога в её собственном растре 1240×1754."""
     pg = pymupdf.open(SRC)[n-1]
@@ -88,13 +134,20 @@ def cut_all(verbose=True):
         if pg not in cache:
             cache[pg] = page_raster(pg)
         crop = cache[pg][y0:y1, x0:x1]
+        crop, cut = trim_edges(crop)
+        if key in TILT:
+            from level import rotate
+            crop = rotate(crop, TILT[key])
         path = f'{OUT}/{key}.png'
         cv2.imwrite(path, crop)
         made[key] = path
         if verbose:
             h, w = crop.shape[:2]
+            tilt = f'  завал {TILT[key]:+.1f}° выправлен' if key in TILT else ''
+            if any(cut.values()):
+                tilt += '  кромка срезана ' + ' '.join(f'{k}{v}' for k, v in cut.items() if v)
             print(f'{key:20s} {w}×{h} px  →  до {w/300*25.4:5.1f}×{h/300*25.4:5.1f} мм '
-                  f'в 300 dpi   {desc}')
+                  f'в 300 dpi   {desc}{tilt}')
     return made
 
 def max_mm(path, dpi=300):

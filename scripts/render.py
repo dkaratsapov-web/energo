@@ -94,7 +94,14 @@ class Page:
         w = pdfmetrics.stringWidth(s, font, size) + sp*max(len(s)-1, 0)
         if   align == 'r': x -= w
         elif align == 'c': x -= w/2
-        self.c.setFillColorRGB(*rgb(color))
+        # Тёмный набор мельче 12 pt идёт ОДНОЙ краской K. Составной чёрный из
+        # RGB после перевода в CMYK ложится четырьмя красками, и на мелком
+        # кегле малейшее несовмещение печатных форм даёт цветную бахрому по
+        # буквам. DeviceCMYK ghostscript при переводе в PDF/X не трогает.
+        if color in (C.INK, C.PURPLE_DEEP) and size <= 12:
+            self.c.setFillColorCMYK(0, 0, 0, 1)
+        else:
+            self.c.setFillColorRGB(*rgb(color))
         t = self.c.beginText(x, y)
         t.setFont(font, size)
         t.setCharSpace(sp)

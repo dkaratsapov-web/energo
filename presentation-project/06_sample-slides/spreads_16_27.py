@@ -91,7 +91,7 @@ def spread_20_21(s):
            track=T.TRACK_CAPS)
     s.lines(['АО «Метрострой', 'Северной Столицы»'], x, y - 40*mm,
             T.FONT_MED, T.H3, t.ink, T.LEAD_H2)
-    photo_rows(s, R, ['p21_ukrm', 'p21_foundations'], PAGE_H + BLEED, -BLEED)
+    photo_rows(s, R, ['p21_ukrm', 'p21_foundations'], HEAD_FLOOR, -BLEED)
 
 
 # ══════════════════════════════ 22–23 · ОЭЗ «ЭММАУС» ════════════════════
@@ -109,7 +109,7 @@ def spread_22_23(s):
              y - 22*mm, t)
     body(s, L, 'Мы принимаем активное участие в работах по строительству '
                'автомобильных дорог и инженерных коммуникаций.', y - 16*mm, t)
-    photo_rows(s, R, ['p23_pipe_trench', 'p23_road_roller'], PAGE_H + BLEED, -BLEED)
+    photo_rows(s, R, ['p23_pipe_trench', 'p23_road_roller'], HEAD_FLOOR, -BLEED)
 
 
 # ═════════════════════════════ 24–25 · ЗАПАДНЫЙ МОСТ ════════════════════
@@ -122,7 +122,7 @@ def spread_24_25(s):
     bullets_to(s, L, ['Переустройство воздушных линий электропередач '
                       'напряжением 0,4-110кВ'], y - 24*mm, 146*mm, t)
     full_photo(s, L, 'p24_worker', -BLEED, 128*mm, x1=edges(L)[0])
-    photo_rows(s, R, ['p25_truss', 'p25_pole'], PAGE_H + BLEED, -BLEED)
+    photo_rows(s, R, ['p25_truss', 'p25_pole'], HEAD_FLOOR, -BLEED)
 
 
 # ══════════════════════ 26–27 · ГРАЖДАНСКОЕ | ПРОМЫШЛЕННОЕ ══════════════
