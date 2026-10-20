@@ -135,7 +135,7 @@ def concepts(brief, out=None, pick=(0, 1, 4)):
 
 
 def build(brief, out=None, concept=None, do_print=True):
-    from deckkit import spec as S, tokens, layouts, pages, render_pdf, render_pptx, preview, preflight, pdfx, docs
+    from deckkit import spec as S, tokens, layouts, pages, catalog3, render_pdf, render_pptx, preview, preflight, pdfx, docs
     t0 = time.time()
     sp = S.load(brief)
     if sp['_errors']:
@@ -150,7 +150,8 @@ def build(brief, out=None, concept=None, do_print=True):
     os.makedirs(cache, exist_ok=True)
     catalog = (sp.get('format') or {}).get('kind') == 'catalog'
     ds = tokens.system(sp['concept'], sp['brand'], sp.get('format') if catalog else None)
-    slides = pages.build(ds, sp) if catalog else layouts.build(ds, sp)
+    mixed = catalog and sp['format'].get('system') == 'mixed'
+    slides = (catalog3.build(ds, sp) if mixed else pages.build(ds, sp)) if catalog else layouts.build(ds, sp)
     W, H = ds['W'], ds['H']
     pr = sp['print']
     trim = pr['trim_mm']

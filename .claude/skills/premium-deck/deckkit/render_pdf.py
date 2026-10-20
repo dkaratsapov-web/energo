@@ -19,8 +19,10 @@ MM = 72 / 25.4
 
 def _neutral_ink(col, ground):
     """Мелкий текст, который печатается краской (темнее фона) и почти серый."""
+    from .tokens import lum
     bg = ground.bg if ground is not None else (255, 255, 255)
-    return sum(col) < sum(bg) and max(col) - min(col) <= 40
+    # почти серый — или настолько тёмный, что оттенок в мелком кегле не читается
+    return sum(col) < sum(bg) and (max(col) - min(col) <= 40 or lum(col) < 0.05)
 
 
 def _k_of(col):

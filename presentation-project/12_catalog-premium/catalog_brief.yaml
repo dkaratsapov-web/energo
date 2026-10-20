@@ -23,6 +23,7 @@ format:
   kind: catalog
   page_mm: [210, 297]
   spreads: true
+  system: mixed      # «Ночь / Чертёж / Поле» — выбор клиента по листу направлений
 
 source:
   pdf: ../../01_current_deck_v34_APPROVED.pdf
@@ -53,6 +54,7 @@ print:
 pages:
   - n: 1
     layout: cover
+    style: night
     title: "КОМПЛЕКСНОЕ\nСТРОИТЕЛЬСТВО"
     tag: "#2025"
     image: cover_bg_clean.jpg
@@ -60,9 +62,10 @@ pages:
 
   - n: 2
     layout: numbered
+    style: night
     ground: dark
     emblem:
-      image: logo/fund_shield_on_342C5D.png
+      image: logo/fund_shield_on_18142E.png
       ar: 0.878
       wordmark: logo/fund_wordmark.svg
     lead: Входим в попечительский совет благотворительного фонда «Энергия Русского духа»
@@ -78,6 +81,7 @@ pages:
 
   - n: 3
     layout: directions
+    style: night
     ground: dark
     title: "КОМПЛЕКСНОЕ\nСТРОИТЕЛЬСТВО"
     items:
@@ -87,6 +91,7 @@ pages:
 
   - n: 4
     layout: mission_chart
+    style: light
     ground: paper
     blocks:
       - title: МИССИЯ КОМПАНИИ
@@ -109,6 +114,7 @@ pages:
 
   - n: 5
     layout: figures
+    style: light
     ground: paper
     columns:
       - - {num: '24', label: руководителя}
@@ -129,6 +135,7 @@ pages:
 
   - n: 6
     layout: stats
+    style: night
     ground: dark2
     items:
       - {value: '25 800 км', label: протянуто проводов на воздушных ЛЭП}
@@ -140,6 +147,7 @@ pages:
 
   - n: 7
     layout: list
+    style: night
     ground: dark2
     title: "ПРОЕКТИРОВАНИЕ\nИ СТРОИТЕЛЬСТВО\nВ СФЕРЕ ЭНЕРГЕТИКИ"
     items:
@@ -156,6 +164,7 @@ pages:
 
   - n: 8
     layout: service
+    style: field
     ground: dark
     title: "ВНУТРЕННИЕ\nЭЛЕКТРИЧЕСКИЕ СЕТИ"
     items: [Внутренняя электрическая сеть, Пожарная сигнализация, Охранная сигнализация, Локальная сеть, Диспетчеризация]
@@ -164,12 +173,14 @@ pages:
 
   - n: 9
     layout: photos
+    style: field
     ground: dark
     photos: [photos/p09_office_desks.png, photos/p09_office_floor.png]
     split: 0.52
 
   - n: 10
     layout: service
+    style: light
     ground: paper
     title: "КАБЕЛЬНЫЕ\nЛИНИИ"
     items: [Собственная спецтехника, Профессиональный инженерный состав, Аккредитация заводов изготовителей, Оптимизация сроков, Многолетний опыт строительства]
@@ -178,12 +189,14 @@ pages:
 
   - n: 11
     layout: photos
+    style: light
     ground: paper
     photos: [photos/p11_trench_top.png, photos/p11_excavator.png]
     split: 0.52
 
   - n: 12
     layout: service
+    style: field
     ground: dark
     title: "ВОЗДУШНЫЕ ЛИНИИ\nЭЛЕКТРОПЕРЕДАЧ"
     items:
@@ -194,12 +207,14 @@ pages:
 
   - n: 13
     layout: photos
+    style: field
     ground: dark
     photos: [photos/p13_workers.png, photos/p13_crane.png]
     split: 0.5
 
   - n: 14
     layout: service
+    style: light
     ground: paper
     title: "РАСПРЕДЕЛИТЕЛЬНЫЕ ПУНКТЫ,\nТРАНСФОРМАТОРНЫЕ\nПОДСТАНЦИИ 110/35КВ"
     title_size: 24
@@ -210,12 +225,14 @@ pages:
 
   - n: 15
     layout: photos
+    style: light
     ground: paper
     photos: [photos/p15_subst_pano.png, photos/p15_svel.png]
     split: 0.50
 
   - n: 16
     layout: service
+    style: night
     ground: dark
     photo_top: 0.48
     title: "ДЕКОРАТИВНОЕ\nИ АРХИТЕКТУРНОЕ\nОСВЕЩЕНИЕ"
@@ -224,6 +241,7 @@ pages:
 
   - n: 17
     layout: service
+    style: night
     ground: dark
     photo_top: 0.48
     title: "НАРУЖНОЕ\nЭЛЕКТРООСВЕЩЕНИЕ"
@@ -233,6 +251,7 @@ pages:
 
   - n: 18
     layout: service
+    style: light
     ground: paper
     title: "ПУСКОНАЛАДОЧНЫЕ\nРАБОТЫ"
     items:
@@ -242,6 +261,7 @@ pages:
 
   - n: 19
     layout: service
+    style: light
     ground: paper
     title: "ГНБ (ГОРИЗОНТАЛЬНО-\nНАПРАВЛЕННОЕ БУРЕНИЕ)"
     title_size: 24
@@ -253,6 +273,7 @@ pages:
 
   - n: 20
     layout: service
+    style: field
     ground: dark
     title: МЕТРОСТРОЙ
     items:
@@ -264,12 +285,14 @@ pages:
 
   - n: 21
     layout: photos
+    style: field
     ground: dark
     photos: [photos/p21_ukrm.png, photos/p21_foundations.png]
     split: 0.5
 
   - n: 22
     layout: service
+    style: light
     ground: paper
     title: "ОСОБАЯ ЭКОНОМИЧЕСКАЯ\nЗОНА «ЭММАУС»\nТВЕРСКАЯ ОБЛАСТЬ"
     title_size: 24
@@ -283,15 +306,17 @@ pages:
 
   - n: 23
     layout: photos
+    style: light
     ground: paper
     photos: [photos/p23_pipe_trench.png, photos/p23_road_roller.png]
     split: 0.5
 
   - n: 24
     layout: service
+    style: field
     ground: dark
-    mode: full
-    shade: 0.78
+    title_size: 27
+    photo_top: 0.50
     title: Строительство мостового перехода через реку Волга в г. Твери (Западный Мост)
     title_size: 22
     items: ["Переустройство воздушных линий электропередач напряжением 0,4-110кВ"]
@@ -299,12 +324,14 @@ pages:
 
   - n: 25
     layout: photos
+    style: field
     ground: dark
     photos: [photos/p25_truss.png, photos/p25_pole.png]
     split: 0.48
 
   - n: 26
     layout: civil
+    style: light
     ground: paper
     title: "ГРАЖДАНСКОЕ\nСТРОИТЕЛЬСТВО"
     paras: [Строительство кирпичных многоэтажных жилых домов с индивидуальным отоплением комфорт-класса]
@@ -315,6 +342,7 @@ pages:
 
   - n: 27
     layout: service
+    style: light
     ground: paper
     title: "ПРОМЫШЛЕННОЕ\nСТРОИТЕЛЬСТВО"
     items: ["Строительство коммерческой недвижимости.\nКласс зданий В/В+"]
@@ -325,21 +353,25 @@ pages:
 
   - n: 28
     layout: map
+    style: night
     ground: dark2
     title: "ГЕОГРАФИЯ\nПРОЕКТОВ"
 
   - n: 29
     layout: regions
+    style: night
     ground: dark2
     items: [Брянская область, Владимирская область, Волгоградская область, Вологодская область, Воронежская область, Ленинградская область, Липецкая область, Московская область, Мурманская область, Нижегородская область, Орловская область, Рязанская область, Смоленская область, Тамбовская область, Тверская область, Тульская область, Ярославская область]
 
   - n: 30
     layout: logos
+    style: light
     ground: dark
     logos: [photos/partners/logo01.png, photos/partners/logo02.png, photos/partners/logo03.png, photos/partners/logo04.png, photos/partners/logo05.png, photos/partners/logo06.png, photos/partners/logo07.png, photos/partners/logo08.png, photos/partners/logo09.png, photos/partners/logo10.png, photos/partners/logo11.png, photos/partners/logo12.png, photos/partners/logo13.png, photos/partners/logo14.png, photos/partners/logo15.png, photos/partners/logo16.png, photos/partners/logo17.png, photos/partners/logo18.png]
 
   - n: 31
     layout: credentials
+    style: light
     ground: dark
     items:
       - "СРО в области инженерных изысканий и в области архитектурно-строительного проектирования.\nУровень ответственности 25 млн. руб."
@@ -353,4 +385,5 @@ pages:
 
   - n: 32
     layout: back
+    style: night
     image: back_bg_150dpi.png

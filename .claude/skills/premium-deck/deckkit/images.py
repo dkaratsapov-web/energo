@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image as PImage, ImageCms
 
 MM_IN = 25.4
-VERSION = 2          # меняется вместе с обработкой — сбрасывает кэш
+VERSION = 3          # меняется вместе с обработкой — сбрасывает кэш
 
 
 _sizes = {}
@@ -81,9 +81,24 @@ def clean(path):
     return im, (t, b, l, r)
 
 
+def _duotone(arr, stops, contrast=1.0):
+    """Градиентная карта по светлоте: все снимки — в одной фирменной гамме.
+    stops — [(0..1, (r,g,b)), …] от теней к светам."""
+    L = (arr @ np.array([0.2126, 0.7152, 0.0722], np.float32)) / 255.0
+    L = np.clip((L - 0.5) * contrast + 0.5, 0, 1)
+    pos = np.array([p for p, _ in stops], np.float32)
+    cols = np.array([c for _, c in stops], np.float32)
+    out = np.empty(arr.shape, np.float32)
+    for ch in range(3):
+        out[..., ch] = np.interp(L, pos, cols[:, ch])
+    return out
+
+
 def _shade(arr, shade, frame=None):
     """frame — доля (x0,y0,x1,y1) области обреза внутри кадра с вылетом,
     чтобы градиент лёг одинаково в превью и в печати."""
+    if shade.get('kind') == 'duotone':
+        return _duotone(arr, shade['stops'], shade.get('contrast', 1.0))
     h, w = arr.shape[:2]
     fx0, fy0, fx1, fy1 = frame or (0, 0, 1, 1)
     side, ext, amt = shade.get('side', 'bottom'), shade.get('extent', 0.5), shade.get('amount', 0.8)
