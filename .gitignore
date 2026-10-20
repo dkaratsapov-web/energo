@@ -13,5 +13,12 @@ __pycache__/
 __pycache__/
 *.pyc
 .agents/
-.claude/skills/
+.claude/skills/*
+!.claude/skills/premium-deck/
 build/v3/*_вёрстка.pdf
+
+# premium-deck: кэш и поштучные превью
+**/__pycache__/
+presentation-project/11_premium-deck-test/.cache/
+presentation-project/11_premium-deck-test/previews/*.png
+presentation-project/11_premium-deck-test/concepts/

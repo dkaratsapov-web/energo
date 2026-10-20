@@ -1,0 +1,5 @@
+Onest — Copyright 2021 The Onest Project Authors (https://github.com/simpals/onest). SIL Open Font License 1.1.
+PT Serif — Copyright 2010 ParaType Inc. SIL Open Font License 1.1 (полный текст: OFL-PTSerif.txt).
+Unbounded — Copyright 2022 The Unbounded Project Authors (https://github.com/w3f/unbounded). SIL Open Font License 1.1.
+Статичные начертания Unbounded-Regular/Bold получены из вариативного файла (wght 400/700) fontTools.varLib.instancer.
+Лицензия OFL разрешает встраивание в PDF и распространение вместе с документами.

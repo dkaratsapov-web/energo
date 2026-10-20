@@ -1,0 +1,116 @@
+# Шаблон брифа premium-deck. Скопируйте, заполните, запустите:
+#   python3 run.py concepts мой_бриф.yaml --out папка
+#   python3 run.py build    мой_бриф.yaml --out папка
+# Этот файл сам собирается в колоду-образец: все 13 композиций без снимков.
+
+meta:
+  title: Студия «Северный свет» — архитектурное освещение   # полное название
+  short: СЕВЕРНЫЙ СВЕТ · 2026                                 # в фолио
+  client: Студия «Северный свет»
+  author: Агентство
+  date: Санкт-Петербург · 2026
+  purpose: Зачем эта встреча
+  audience: Кто смотрит и что он решает
+  goal: Что должно случиться после показа
+
+concept: C            # A | B | C — после просмотра concepts.jpg
+
+brand:                # цвета клиента; роли им назначит концепция
+  accent: '#2F6BFF'
+  dark:   '#14182B'
+  ink:    '#111216'
+  paper:  '#F4F3EF'
+
+assets_dir: .         # откуда брать снимки (пути ниже — от этой папки)
+
+print:
+  printer: не выбрана
+  trim_mm: [297, 167.06]   # должен быть 16:9
+  bleed_mm: 3
+  min_dpi: 300
+  tac_max: 300
+  safe_mm: 5
+  confirmed: {}            # trim_mm: true, bleed_mm: true … или confirmed: true
+
+slides:
+  - layout: cover          # title*, subtitle, eyebrow, client, date, image, focus
+    eyebrow: Свет для городских фасадов
+    title: Город, который видно ночью
+    subtitle: Проектируем и монтируем архитектурную подсветку зданий и набережных
+    client: Студия «Северный свет»
+    date: Санкт-Петербург · 2026
+    notes: Заметки докладчика попадают в PPTX.
+
+  - layout: statement      # title*, eyebrow, text
+    eyebrow: Почему это важно
+    title: Ночной город продаёт себя так же, как дневной
+    text: Подсвеченный фасад работает на арендаторов, туристов и бренд района каждый вечер.
+
+  - layout: stats          # title*, items* [{value, label}] — первая цифра главная
+    eyebrow: Цифры
+    title: Сделано за пять лет
+    items:
+      - {value: '120', label: фасадов подсвечено}
+      - {value: '14 км', label: набережных}
+      - {value: '38', label: городов}
+      - {value: '0', label: сорванных сроков}
+
+  - layout: number         # value*, title*, unit, text, eyebrow
+    eyebrow: Энергия
+    value: '−62 %'
+    unit: к потреблению
+    title: Светодиоды и сценарии снижают счёт за свет
+    text: Пример из шаблона — замените цифрой клиента.
+
+  - layout: section        # title*, number, eyebrow
+    number: '02'
+    eyebrow: Раздел
+    title: Как мы работаем
+
+  - layout: points         # title*, items* [{title, text}] 2–4 — первая главная
+    eyebrow: Подход
+    title: Свет как часть архитектуры
+    items:
+      - {title: Сценарий, text: Свет меняется по времени, сезону и событию.}
+      - {title: Проект, text: Расчёт освещённости и визуализация.}
+      - {title: Монтаж, text: Своя бригада промышленных альпинистов.}
+
+  - layout: chart          # title*, data* [{label, value, display}], highlight, unit, text
+    eyebrow: Рост
+    title: Заказов втрое больше, чем в 2021 году
+    unit: проектов в год
+    highlight: 4
+    data:
+      - {label: '2021', value: 8}
+      - {label: '2022', value: 11}
+      - {label: '2023', value: 15}
+      - {label: '2024', value: 19}
+      - {label: '2025', value: 24}
+
+  - layout: process        # title*, steps* [{title, text}] 3–5, highlight
+    eyebrow: Этапы
+    title: От обмера до первого включения
+    highlight: 1
+    steps:
+      - {title: Обмер, text: Съёмка фасада}
+      - {title: Концепция, text: Сценарии света}
+      - {title: Проект, text: Расчёты и смета}
+      - {title: Монтаж, text: Своя бригада}
+
+  - layout: quote          # text*, author, role
+    text: Мы не добавляем свет к зданию — мы показываем архитектуру, которую днём не видно.
+    author: Принцип студии
+    role: Студия «Северный свет»
+
+  - layout: closing        # title*, text, contacts [строки], eyebrow
+    eyebrow: Следующий шаг
+    title: Покажем ваш фасад ночью
+    text: Сделаем бесплатную визуализацию подсветки одного здания за неделю.
+    contacts:
+      - Студия «Северный свет»
+      - hello@example.com
+
+# Композиции со снимками (нужны файлы):
+#  - layout: split_image   title*, image*, text, points [≤3], side: left|right, focus
+#  - layout: full_image    title*, image*, text, eyebrow, focus
+#  - layout: gallery       title*, images* [{path, focus}] — 3 кадра, text
